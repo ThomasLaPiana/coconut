@@ -1,6 +1,10 @@
 # Coconut Contributing Guidelines
 
-**Anyone is welcome to submit an issue or pull request regardless of whether or not they have read this document.** The purpose of this document is simply to explain the contribution process and the internals of how Coconut works to make contributing easier.
+**By contributing to Coconut, you consent to your contribution being released under [Coconut's Apache 2.0 license](https://github.com/evhub/coconut/blob/develop/LICENSE.txt).**
+
+**Anyone is welcome to submit an issue or pull request!** The purpose of this document is simply to explain the contribution process and the internals of how Coconut works to make contributing easier.
+
+_Note: If you are considering contributing to Coconut, you'll be doing so on the [`develop` branch](https://github.com/evhub/coconut/tree/develop), which means you should be viewing [the `develop` version of the Contributing Guidelines](http://coconut.readthedocs.io/en/develop/CONTRIBUTING.html), if you aren't doing so already._
 
 ## Asking Questions
 
@@ -18,6 +22,14 @@ Contributing to Coconut is as simple as
 
 Want to help out, but don't know what to work on? Head over to Coconut's [open issues](https://github.com/evhub/coconut/issues) and look for ones labeled "contributor friendly." Contributor friendly issues are those that require less intimate knowledge of Coconut's inner workings, and are thus possible for new contributors to work on.
 
+## Testing New Changes
+
+First, you'll want to set up a local copy of Coconut's recommended development environment. For that, just run `git checkout develop` and `make dev`. That should switch you to the `develop` branch, install all possible dependencies, bind the `coconut` command to your local copy, and set up [pre-commit](http://pre-commit.com/), which will check your code for errors for you whenever you `git commit`.
+
+Then, you should be able to use the Coconut command-line for trying out simple things, and to run a paired-down version of the test suite locally, just `make test-basic`.
+
+After you've tested your changes locally, you'll want to add more permanent tests to Coconut's test suite. Coconut's test suite is primarily written in Coconut itself, so testing new features just means using them inside of one of Coconut's `.coco` test files, with some `assert` statements to check validity.
+
 ## File Layout
 
 - `DOCS.md`
@@ -27,7 +39,7 @@ Want to help out, but don't know what to work on? Head over to Coconut's [open i
 - `HELP.md`
     + Markdown file containing Coconut's tutorial. The tutorial should be a streamlined introduction to Coconut and all of its most important features.
 - `Makefile`
-    + Contains targets for installing Coconut, building the documentation, checking for dependency updates, etc. The target `make dev` will automatically install the full Coconut developer environment.
+    + Contains targets for installing Coconut, building the documentation, checking for dependency updates, etc.
 - `setup.py`
     + Using information from `requirements.py` and `constants.py` to install Coconut. Also reads `README.rst` to generate the PyPI description.
 - `conf.py`
@@ -81,6 +93,9 @@ Want to help out, but don't know what to work on? Head over to Coconut's [open i
             + Contains `Matcher`, which handles the compilation of all Coconut pattern-matching, including `match` statements, destructuring assignment, and pattern-matching functions.
         - `util.py`
             + Contains utilities for working with PyParsing objects that are primarily used by `grammar.py`.
+        - templates
+            - `header.py_template`
+                + Template for the main body of Coconut's header; use and formatting of this file is all in `header.py`.
     - icoconut
         - `__init__.py`
             + Imports everything from `icoconut/root.py`.
@@ -151,7 +166,7 @@ Want to help out, but don't know what to work on? Head over to Coconut's [open i
     1. Wait until everything is passing
 
 3. Release:
-    1. Release [`sublime-coconut`]https://github.com/evhub/sublime-coconut() first if applicable
+    1. Release [`sublime-coconut`](https://github.com/evhub/sublime-coconut) first if applicable
     1. Merge pull request and mark as resolved
     1. Release `master` on GitHub
     1. Fetch and switch to `master` locally

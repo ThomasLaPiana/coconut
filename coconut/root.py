@@ -26,7 +26,7 @@ import sys as _coconut_sys
 VERSION = "1.2.3"
 VERSION_NAME = "Colonel"
 # False for release, int >= 1 for develop
-DEVELOP = False
+DEVELOP = 28
 
 #-----------------------------------------------------------------------------------------------------------------------
 # CONSTANTS:
@@ -34,7 +34,6 @@ DEVELOP = False
 
 if DEVELOP:
     VERSION += "-post_dev" + str(int(DEVELOP))
-__version__ = VERSION
 VERSION_STR = VERSION + " [" + VERSION_NAME + "]"
 
 PY2 = _coconut_sys.version_info < (3,)

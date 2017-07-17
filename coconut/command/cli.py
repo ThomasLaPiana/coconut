@@ -122,7 +122,7 @@ arguments.add_argument(
 arguments.add_argument(
     "--no-tco", "--notco",
     action="store_true",
-    help="disable tail call optimization for ease of debugging")
+    help="disable tail call optimization")
 
 arguments.add_argument(
     "-c", "--code",
@@ -159,14 +159,20 @@ arguments.add_argument(
     help="run MyPy on compiled Python (remaining args passed to MyPy) (implies --package --no-tco)")
 
 arguments.add_argument(
+    "--argv",
+    type=str,
+    nargs=argparse.REMAINDER,
+    help="set sys.argv to source plus remaining args for use in Coconut script being run")
+
+arguments.add_argument(
     "--tutorial",
     action="store_true",
-    help="open the Coconut tutorial in the default web browser")
+    help="open Coconut's tutorial in the default web browser")
 
 arguments.add_argument(
     "--documentation",
     action="store_true",
-    help="open the Coconut documentation in the default web browser")
+    help="open Coconut's documentation in the default web browser")
 
 arguments.add_argument(
     "--style",
@@ -190,4 +196,4 @@ if DEVELOP:
     arguments.add_argument(
         "--trace",
         action="store_true",
-        help="show verbose parsing data (only available in coconut-develop)")
+        help="print verbose parsing data (only available in coconut-develop)")

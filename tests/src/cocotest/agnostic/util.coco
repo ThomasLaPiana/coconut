@@ -9,28 +9,46 @@ def rand_list(n):
 
 # Infix Functions:
 plus = (+)
-mod = (%)
+mod: (int, int) -> int = (%)
 def (a: int) `mod_` (b: int) -> int = a % b
 base = int
 def a `join_with` (b=""):
     return b.join(a)
 
+# Composable Functions:
+plus1 = plus$(1)
+square = (**)$(?, 2)
+times2 = (*)$(2)
+
+# Function Compositions:
+plus1sq_1 = square..plus1
+sqplus1_1 = plus1
+sqplus1_1 ..= square  # type: ignore
+
+plus1sq_2 = (x) -> x |> plus1 |> square
+sqplus1_2 = (x) -> x |> square |> plus1
+
+plus1sq_3 = square <.. plus1
+sqplus1_3 = plus1
+sqplus1_3 <..= square  # type: ignore
+
+plus1sq_4 = plus1 ..> square
+sqplus1_4 = square
+sqplus1_4 ..>= plus1  # type: ignore
+
+square_times2_plus1 = square ..> times2 ..> plus1
+square_times2_plus1_ = plus1 <.. times2 <.. square
+plus1_cube = plus1 ..> x -> x**3
+
 # Basic Functions:
 product = reduce$(*)
 def zipwith(f, *args) = map((items) -> f(*items), zip(*args))
 zipsum = map$(sum)..zip
-plus1 = plus$(1)
 ident = (x) -> x
 @ ident .. ident
 def plus1_(x: int) -> int = x + 1
 def sqrt(x: int) -> float = x**0.5
 def sqrt_(x) = x**0.5
-square = (**)$(?, 2)
-plus1sq = square..plus1
-sqplus1 = plus1
-sqplus1 ..= square
-plus1sq_ = (x) -> x |> plus1 |> square
-sqplus1_ = (x) -> x |> square |> plus1
 clean = (s) -> s.strip()
 add2 = (x) -> (y) -> x + y
 def swap2(f) = (x, y) -> f(y, x)
@@ -40,14 +58,14 @@ def chain2(a, b):
     yield from a
     yield from b
 def threeple(a, b, c) = (a, b, c)
-times2 = (*)$(2)
+def toprint(*args) = " ".join(str(a) for a in args)
 
 # Partial Applications:
 sum_ = reduce$((+))
 add = zipwith$((+))
 
 # Quick-Sorts:
-def qsort1(l):
+def qsort1(l: int[]):
     '''Non-Functional Quick Sort.'''
     if len(l) == 0:
         return []
@@ -62,7 +80,7 @@ def qsort1(l):
             else:
                 larges.append(x)
         return qsort1(smalls) + [split] + qsort1(larges)
-def qsort2(l):
+def qsort2(l: int[]):
     """Functional Quick Sort."""
     if not l:
         return []
@@ -84,7 +102,7 @@ def qsort3(l):
                 )
     except StopIteration:
         return iter(())
-def qsort4(l):
+def qsort4(l: int[]):
     """Match Quick Sort."""
     match [] in l:
         return l
@@ -167,6 +185,33 @@ def is_odd_(0) = False
 @addpattern(is_odd_)
 def is_odd_(n) = is_even_(n-1)
 
+# TCO/TRE tests:
+
+def tco_chain(it) =
+    consume(it :: ["last"], keep_last=1)
+
+def partition(items, pivot, lprefix=[], rprefix=[]):
+    case items:
+        match [head]::tail:
+            if head < pivot:
+                return partition(tail, pivot, [head]::lprefix, rprefix)
+            else:
+                return partition(tail, pivot, lprefix, [head]::rprefix)
+        match []::_:
+            return lprefix, rprefix
+partition_ = recursive_iterator(partition)
+
+def myreduce(func, items):
+    match [first]::tail1 in items:
+        match [second]::tail2 in tail1:
+            return myreduce(func, [func(first, second)]::tail2)
+        else:
+            return first
+
+def fake_recurse_n_times(n) =
+    fake_recurse_n_times = recurse_n_times
+    fake_recurse_n_times(n)
+
 # Data Blocks:
 data preop(x, y):
     def add(self):
@@ -202,7 +247,7 @@ def is_null(item):
 data Elems(elems):
     def __new__(cls, *elems) =
         elems |> datamaker(cls)
-data vector_with_id(x, y, i) from vector
+data vector_with_id(x, y, i) from vector  # type: ignore
 
 # Factorial:
 def factorial1(value):
@@ -458,6 +503,14 @@ class A:
 class B(A):
     pass
 
+# Nesting:
+class Nest:
+    class B:
+        class C:
+            d = "data"
+        c = C()
+    b = B()
+
 # Infinite Grid:
 
 data pt(x, y):
@@ -501,6 +554,12 @@ def SHOPeriodTerminate(X, t, params):
     return 0     # keep going
 
 # Multiple dispatch:
+def prepattern(base_func):
+    """Decorator to add a new case to a pattern-matching function,
+    where the new case is checked first."""
+    def pattern_prepender(func):
+        return addpattern(func)(base_func)
+    return pattern_prepender
 
 def add_int_or_str_1(x is int) = x + 1
 @addpattern(add_int_or_str_1)
@@ -511,7 +570,9 @@ def coercive_add(a is int, b) = a + int(b)
 def coercive_add(a is str, b) = a + str(b)
 
 @addpattern(ident)
-def still_ident(x) = "foo"
+def still_ident(x) =
+    """docstring"""
+    "foo"
 
 @prepattern(ident)
 def not_ident(x) = "bar"
@@ -564,7 +625,7 @@ def minus(a, b) = b - a
 # Exception Functions
 
 def raise_exc():
-    raise Exception()
+    raise Exception("raise_exc")
 
 def does_raise_exc(func):
     try:
@@ -585,7 +646,7 @@ def ret_args_kwargs(*args, **kwargs) = (args, kwargs)
 class identity_operations:
     def __getitem__(self, args) = args
     def method(self, *args, **kwargs) = (args, kwargs)
-ident = identity_operations()
+identity = identity_operations()
 
 class container:
     def __init__(self, x):
@@ -660,7 +721,7 @@ class Vars:
     @classmethod
     @contextmanager
     def using(cls, globs=None):
-        """Temporarilty put variables into the global namespace."""
+        """Temporarily put variables into the global namespace."""
         if globs is None:
             globs = globals()
         prevars = {}
@@ -684,3 +745,18 @@ data Tuple(*elems)
 data Pred(name, *args)
 
 data Quant(name, var, *args)
+
+# Type-Checking Tests
+
+any_to_ten: -> int = (*args, **kwargs) -> 10
+none_to_ten: () -> int = () -> 10
+
+def int_map(f: int->int, xs: int[]) -> int[]: return list(map(f, xs))
+
+# Context managers
+
+def context_produces(out):
+    @contextmanager
+    def manager():
+        yield out
+    return manager()

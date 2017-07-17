@@ -43,7 +43,7 @@ Installing Coconut, including all the features above, is drop-dead simple. Just
 pip install coconut
 ```
 
-_Note: Try re-running the above command with the `--user` option if you are encountering errors. Be sure that the `coconut` installation location (`/usr/local/bin` or `${HOME}/.local/bin/` on UNIX machines) is in your PATH environment variable._
+_Note: Try re-running the above command with the `--user` option if you are encountering errors. Be sure that the `coconut` installation location (on UNIX `/usr/local/bin` or `${HOME}/.local/bin/`) is in your PATH environment variable._
 
 To check that your installation is functioning properly, try entering into the command line
 ```
@@ -119,9 +119,11 @@ python hello_world.py
 ```
 which should produce `hello, world!` as the output.
 
+_Note: You can compile and run your code all in one step if you use Coconut's `--run` option._
+
 Compiling single files is not the only way to use the Coconut command-line utility, however. We can also compile all the Coconut files in a given directory simply by passing that directory as the first argument, which will get rid of the need to run the same Coconut header code in each file by storing it in a `__coconut__.py` file in the same directory.
 
-The Coconut  compiler supports a large variety of different compilation options, the help for which can always be accessed by entering `coconut -h` into the command line. One of the most useful of these is `--linenumbers` (or `-l` for short). Using `--linenumbers` will add the line numbers of your source code as comments in the compiled code, allowing you to see what line in your source code corresponds to a line in the compiled code where an error is occurring, for ease of debugging.
+The Coconut  compiler supports a large variety of different compilation options, the help for which can always be accessed by entering `coconut -h` into the command line. One of the most useful of these is `--line-numbers` (or `-l` for short). Using `--line-numbers` will add the line numbers of your source code as comments in the compiled code, allowing you to see what line in your source code corresponds to a line in the compiled code where an error occurred, for ease of debugging.
 
 ### Using IPython/Jupyter
 
@@ -253,7 +255,7 @@ Copy, paste! This new `factorial` function is equivalent to the original version
 
 ### Iterative Method
 
-The final, and other functional, approach, is the iterative one. Iterative approaches avoid the need for state change and loops by using higher-order functions, those that take other functions as their arguments, like `map` and `reduce`, to abstract out the basic operations being performed. In Coconut, the iterative approach to the `factorial` problem is:
+The other main functional approach is the iterative one. Iterative approaches avoid the need for state change and loops by using higher-order functions, those that take other functions as their arguments, like `map` and `reduce`, to abstract out the basic operations being performed. In Coconut, the iterative approach to the `factorial` problem is:
 ```coconut
 def factorial(n):
     """Compute n! where n is an integer >= 0."""
@@ -277,9 +279,9 @@ Copy, paste! This definition differs from the recursive definition only by one l
 return range(1, n+1) |> reduce$(*)
 ```
 
-Let's break down what's happening on this line. First, the `range` function constructs an iterator of all the numbers that need to be multiplied together. Then, it is piped into the function `reduce$(*)`, which does that multiplication. But how? What is `reduce$(*)`.
+Let's break down what's happening on this line. First, the `range` function constructs an iterator of all the numbers that need to be multiplied together. Then, it is piped into the function `reduce$(*)`, which does that multiplication. But how? What is `reduce$(*)`?
 
-We'll start with the base, the `reduce` function. `reduce` used to exist as a built-in in Python 2, and Coconut brings it back. `reduce` is a higher-order function that takes a function on two arguments as its first argument, and an iterator as its second argument, and applies that function to the given iterator by starting with the first element, and calling the function on the accumulated call so far and the next element, until the iterator is exhausted. Here's a visual representation:
+We'll start with the base, the `reduce` function. `reduce` used to exist as a built-in in Python 2, and Coconut brings it back. `reduce` is a higher-order function that takes a function of two arguments as its first argument, and an iterator as its second argument, and applies that function to the given iterator by starting with the first element, and calling the function on the accumulated call so far and the next element, until the iterator is exhausted. Here's a visual representation:
 ```coconut
 reduce(f, (a, b, c, d))
 
@@ -335,7 +337,7 @@ def factorial(n is int if n > 0) =
 0 |> factorial |> print  # 1
 3 |> factorial |> print  # 6
 ```
-Copy, paste! This should work exactly like before, except now it raises `MatchError` as a fall through instead of `TypeError`. There are three major new concepts to talk about here: `addpattern`, of course, assignment funciton notation, and pattern-matching function definition—how both of the functions above are defined.
+Copy, paste! This should work exactly like before, except now it raises `MatchError` as a fall through instead of `TypeError`. There are three major new concepts to talk about here: `addpattern`, of course, assignment function notation, and pattern-matching function definition—how both of the functions above are defined.
 
 First, assignment function notation. This one's pretty straightforward. If a function is defined with an `=` instead of a `:`, the last line is required to be an expression, and is automatically returned.
 
@@ -394,9 +396,9 @@ def quick_sort(l):
     """Sort the input iterator, using the quick sort algorithm, and without using any data until necessary."""
     match [head] :: tail in l:
         tail, tail_ = tee(tail)
-        yield from (quick_sort((x for x in tail if x < head))
+        yield from (quick_sort(x for x in tail if x < head)
             :: (head,)
-            :: quick_sort((x for x in tail_ if x >= head))
+            :: quick_sort(x for x in tail_ if x >= head)
             )
 
 # Test cases:
@@ -437,13 +439,13 @@ def quick_sort(l):
     """Sort the input iterator, using the quick sort algorithm, and without using any data until necessary."""
     match [head] :: tail in l:
         tail, tail_ = tee(tail)
-        yield from (quick_sort((x for x in tail if x < head))
+        yield from (quick_sort(x for x in tail if x < head)
             :: (head,)
-            :: quick_sort((x for x in tail_ if x >= head))
+            :: quick_sort(x for x in tail_ if x >= head)
             )
 ```
 
-The function first attempts to split `l` into an initial element and a remaining iterator. If `l` is the empty iterator, that match will fail, and it will fall through, yielding the empty iterator. Otherwise, we make a copy of the rest of the iterator, and yield the join of (the quick sort of all the remaining elements less than the initial element), (the initial element), and (the quick sort of all the remaining elements greater than the initial element).
+The function first attempts to split `l` into an initial element and a remaining iterator. If `l` is the empty iterator, that match will fail, and it will fall through, yielding the empty iterator (that's how the function handles the base case). Otherwise, we make a copy of the rest of the iterator, and yield the join of (the quick sort of all the remaining elements less than the initial element), (the initial element), and (the quick sort of all the remaining elements greater than the initial element).
 
 The advantages of the basic approach used here, heavy use of iterators and recursion, as opposed to the classical imperative approach, are numerous. First, our approach is more clear and more readable, since it is describing _what_ `quick_sort` is instead of _how_ `quick_sort` could be implemented. Second, our approach is _lazy_ in that our `quick_sort` won't evaluate any data until it needs it. Finally, and although this isn't relevant for `quick_sort` it is relevant in many other cases, an example of which we'll see later in this tutorial, our approach allows for working with _infinite_ series just like they were finite.
 
@@ -544,7 +546,7 @@ One thing to note here is that unlike the other operator functions, `(-)` can ei
 ```coconut
     def __neg__(self) =
         """Retrieve the negative of the vector."""
-        self.pts |> map$((-)) |*> vector
+        self.pts |> map$(-) |*> vector
 ```
 
 Our next method will be equality. We're again going to use `data` pattern-matching to implement this, but this time inside of a `match` statement instead of with destructuring assignment, since we want to `return False` not raise an error if the match fails. Here's the code:
@@ -600,7 +602,7 @@ data vector(*pts):
         map((-), self.pts, other_pts) |*> vector
     def __neg__(self) =
         """Retrieve the negative of the vector."""
-        self.pts |> map$((-)) |*> vector
+        self.pts |> map$(-) |*> vector
     def __eq__(self, other):
         """Compare whether two vectors are equal."""
         match vector(*=self.pts) in other:
@@ -700,7 +702,7 @@ _Hint: the `n`th diagonal should contain `n+1` elements, so try starting with `r
 
 That wasn't so bad, now was it? Now, let's take a look at my solution:
 ```coconut
-def diagonal_line(n) = range(n+1) |> map$((i) -> (i, n-i))
+def diagonal_line(n) = range(n+1) |> map$(i -> (i, n-i))
 ```
 Pretty simple, huh? We take `range(n+1)`, and use `map` to transform it into the right sequence of tuples.
 
@@ -757,7 +759,7 @@ vector_field()$[0] |> print  # vector(*pts=(0, 0))
 vector_field()$[2:3] |> list |> print  # [vector(*pts=(1, 0))]
 ```
 
-_Hint: Remember, the way we defined vector it takes the components as separate arguments, not a single tuple._
+_Hint: Remember, the way we defined vector it takes the components as separate arguments, not a single tuple. You may find the `starmap` built-in useful in dealing with that._
 
 <br>
 <br>
@@ -782,9 +784,9 @@ _Hint: Remember, the way we defined vector it takes the components as separate a
 
 We're making good progress! Before we move on, check your solution against mine:
 ```coconut
-def vector_field() = linearized_plane() |> map$((xy) -> vector(*xy))
+def vector_field() = linearized_plane() |> starmap$(vector)
 ```
-All we're doing is taking our `linearized_plane` and mapping `vector` over it, but making sure to call vector with each element of the tuple as a separate argument.
+All we're doing is taking our `linearized_plane` and mapping `vector` over it, but using `starmap` instead of `map` so that `vector` gets called with each element of the tuple as a separate argument.
 
 ### Applications
 
@@ -813,7 +815,7 @@ data vector(*pts):
         map((-), self.pts, other_pts) |*> vector
     def __neg__(self) =
         """Retrieve the negative of the vector."""
-        self.pts |> map$((-)) |*> vector
+        self.pts |> map$(-) |*> vector
     def __eq__(self, other):
         """Compare whether two vectors are equal."""
         match vector(*=self.pts) in other:
@@ -831,9 +833,9 @@ data vector(*pts):
         """Necessary to make scalar multiplication commutative."""
         self * other
 
-def diagonal_line(n) = range(n+1) |> map$((i) -> (i, n-i))
+def diagonal_line(n) = range(n+1) |> map$(i -> (i, n-i))
 def linearized_plane(n=0) = diagonal_line(n) :: linearized_plane(n+1)
-def vector_field() = linearized_plane() |> map$((xy) -> vector(*xy))
+def vector_field() = linearized_plane() |> map$(xy -> vector(*xy))
 
 # Test cases:
 diagonal_line(0) `isinstance` (list, tuple) |> print  # False (should be an iterator)
@@ -894,7 +896,7 @@ _Hint: Look back at how we implemented scalar multiplication._
 
 Here's my solution for you to check against:
 ```coconut
-    def __truediv__(self, other) = self.pts |> map$((x) -> x/other) |*> vector
+    def __truediv__(self, other) = self.pts |> map$(x -> x/other) |*> vector
 ```
 
 ### `.unit`
@@ -1001,7 +1003,7 @@ data vector(*pts):
         map((-), self.pts, other_pts) |*> vector
     def __neg__(self) =
         """Retrieve the negative of the vector."""
-        self.pts |> map$((-)) |*> vector
+        self.pts |> map$(-) |*> vector
     def __eq__(self, other):
         """Compare whether two vectors are equal."""
         match vector(*=self.pts) in other:
@@ -1019,7 +1021,7 @@ data vector(*pts):
         """Necessary to make scalar multiplication commutative."""
         self * other
      # New one-line functions necessary for finding the angle between vectors:
-    def __truediv__(self, other) = self.pts |> map$((x) -> x/other) |*> vector
+    def __truediv__(self, other) = self.pts |> map$(x -> x/other) |*> vector
     def unit(self) = self / abs(self)
     def angle(self, other is vector) = math.acos(self.unit() * other.unit())
 
@@ -1056,8 +1058,10 @@ zipsum = map$(sum)..zip
 
 Function composition also gets rid of the need for lots of parentheses when chaining function calls, like so:
 ```coconut
-(plus1..square)(3) == 10
+plus1..square(3) == 10
 ```
+
+_Note: Coconut also supports the function composition pipe operators `..>` and `<..`._
 
 ### Implicit Partials
 

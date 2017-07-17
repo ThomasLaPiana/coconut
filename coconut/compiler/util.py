@@ -8,7 +8,7 @@
 """
 Author: Evan Hubinger
 License: Apache 2.0
-Description: Utilites for use in the compiler.
+Description: Utilities for use in the compiler.
 """
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -19,18 +19,22 @@ from __future__ import print_function, absolute_import, unicode_literals, divisi
 
 from coconut.root import *  # NOQA
 
-from pyparsing import (
+from contextlib import contextmanager
+
+from coconut.pyparsing import (
     replaceWith,
     ZeroOrMore,
     Optional,
     SkipTo,
     CharsNotIn,
+    ParseElementEnhance,
+    ParseException,
 )
 
 from coconut.terminal import logger, complain
 from coconut.constants import (
-    ups,
-    downs,
+    opens,
+    closes,
     openindent,
     closeindent,
     default_whitespace_chars,
@@ -82,13 +86,13 @@ def count_end(teststr, testchar):
     return count
 
 
-def paren_change(inputstring):
+def paren_change(inputstring, opens=opens, closes=closes):
     """Determines the parenthetical change of level (num closes - num opens)."""
     count = 0
     for c in inputstring:
-        if c in downs:  # open parens/brackets/braces
+        if c in opens:  # open parens/brackets/braces
             count -= 1
-        elif c in ups:  # close parens/brackets/braces
+        elif c in closes:  # close parens/brackets/braces
             count += 1
     return count
 
@@ -130,9 +134,9 @@ def tokenlist(item, sep, suppress=True):
     return item + ZeroOrMore(sep + item) + Optional(sep)
 
 
-def itemlist(item, sep):
+def itemlist(item, sep, suppress_trailing=True):
     """Creates a list of items seperated by seps."""
-    return condense(item + ZeroOrMore(addspace(sep + item)) + Optional(sep))
+    return condense(item + ZeroOrMore(addspace(sep + item)) + Optional(sep.suppress() if suppress_trailing else sep))
 
 
 def exprlist(expr, op):
@@ -202,6 +206,9 @@ def matches(grammar, text):
     return list(grammar.parseWithTabs().scanString(text))
 
 
+ignore_transform = object()
+
+
 def transform(grammar, text):
     """Transforms text by replacing matches to grammar."""
     results = []
@@ -209,8 +216,9 @@ def transform(grammar, text):
     for tokens, start, stop in grammar.parseWithTabs().scanString(text):
         if len(tokens) != 1:
             raise CoconutInternalException("invalid transform result tokens", tokens)
-        results.append(tokens[0])
-        intervals.append((start, stop))
+        if tokens[0] is not ignore_transform:
+            results.append(tokens[0])
+            intervals.append((start, stop))
 
     if not results:
         return None
@@ -233,3 +241,52 @@ def transform(grammar, text):
     if stop is not None:
         raise CoconutInternalException("failed to properly split text to be transformed")
     return "".join(out)
+
+
+class Wrap(ParseElementEnhance):
+    """PyParsing token that wraps the given item in the given context manager."""
+
+    def __init__(self, item, wrapper):
+        super(Wrap, self).__init__(item)
+        self.errmsg = item.errmsg + " (Wrapped)"
+        self.wrapper = wrapper
+
+    def parseImpl(self, instring, loc, *args, **kwargs):
+        with self.wrapper(self, instring, loc):
+            return super(Wrap, self).parseImpl(instring, loc, *args, **kwargs)
+
+
+def disable_inside(item, *elems, **kwargs):
+    """Prevent elems from matching inside of item.
+    Returns (item with elem disabled, *new versions of elems)."""
+    _invert = kwargs.get("_invert", False)
+    assert set(kwargs.keys()) <= set(("_invert",))
+
+    level = [0]  # number of wrapped items deep we are; in a list to allow modification
+
+    @contextmanager
+    def manage_item(self, instring, loc):
+        level[0] += 1
+        try:
+            yield
+        finally:
+            level[0] -= 1
+
+    yield Wrap(item, manage_item)
+
+    @contextmanager
+    def manage_elem(self, instring, loc):
+        if level[0] == 0 if not _invert else level[0] > 0:
+            yield
+        else:
+            raise ParseException(instring, loc, self.errmsg, self)
+
+    for elem in elems:
+        yield Wrap(elem, manage_elem)
+
+
+def disable_outside(item, *elems):
+    """Prevent elems from matching outside of item.
+    Returns (item with elem disabled, *new versions of elems)."""
+    for wrapped in disable_inside(item, *elems, **{"_invert": True}):
+        yield wrapped

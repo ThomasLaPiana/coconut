@@ -20,8 +20,6 @@ from coconut.root import *  # NOQA
 import sys
 import platform
 
-import setuptools
-
 from coconut.constants import (
     all_reqs,
     min_versions,
@@ -80,6 +78,10 @@ def everything_in(req_dict):
 # SETUP:
 #-----------------------------------------------------------------------------------------------------------------------
 
+PYPY = platform.python_implementation() == "PyPy"
+PY33 = sys.version_info >= (3, 3)
+PY34 = sys.version_info >= (3, 4)
+
 requirements = get_reqs()
 
 extras = {
@@ -95,9 +97,9 @@ extras["all"] = everything_in(extras)
 
 extras["tests"] = uniqueify(
     get_reqs("tests")
-    + (extras["jobs"] if platform.python_implementation() != "PyPy" else [])
-    + (extras["jupyter"] if (PY2 and not PY26) or sys.version_info >= (3, 3) else [])
-    + (extras["mypy"] if sys.version_info >= (3, 4) else [])
+    + (extras["jobs"] + get_reqs("cPyparsing") if not PYPY else [])
+    + (extras["jupyter"] if (PY2 and not PY26) or PY33 else [])
+    + (extras["mypy"] if PY34 else [])
 )
 
 extras["docs"] = unique_wrt(get_reqs("docs"), requirements)
@@ -106,6 +108,8 @@ extras["dev"] = uniqueify(
     everything_in(extras)
     + get_reqs("dev")
 )
+
+extras["cPyparsing"] = get_reqs("cPyparsing")
 
 
 def add_version_reqs(modern=True):
@@ -124,12 +128,16 @@ def add_version_reqs(modern=True):
             requirements += get_reqs("py2")
 
 
-if int(setuptools.__version__.split(".", 1)[0]) < 18:
-    if "bdist_wheel" in sys.argv:
-        raise RuntimeError("bdist_wheel not supported for setuptools versions < 18 (run 'pip install --upgrade setuptools' to fix)")
-    add_version_reqs(modern=False)
-else:
+try:
+    import setuptools
+    modern_setuptools = int(setuptools.__version__.split(".", 1)[0]) >= 18
+except Exception:
+    modern_setuptools = False
+
+if modern_setuptools:
     add_version_reqs()
+else:
+    add_version_reqs(modern=False)
 
 #-----------------------------------------------------------------------------------------------------------------------
 # MAIN:

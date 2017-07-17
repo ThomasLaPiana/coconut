@@ -8,7 +8,7 @@
 """
 Author: Evan Hubinger
 License: Apache 2.0
-Description: Starts the Coconut command line utility.
+Description: Wrapper around PyParsing that selects the best available implementation.
 """
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -17,37 +17,38 @@ Description: Starts the Coconut command line utility.
 
 from __future__ import print_function, absolute_import, unicode_literals, division
 
-import sys
-import os.path
-
-
-def add_coconut_to_path():
-    """Adds coconut to sys.path if it isn't there already."""
-    try:
-        import coconut  # NOQA
-    except ImportError:
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-
-add_coconut_to_path()
 from coconut.root import *  # NOQA
 
-from coconut.command import Command
+try:
+    from cPyparsing import *  # NOQA
+    if DEVELOP:
+        from cPyparsing import _trim_arity  # NOQA
+
+    from cPyparsing import __version__
+    PYPARSING = "Cython cPyparsing v" + __version__
+
+except ImportError:
+    from pyparsing import *  # NOQA
+    if DEVELOP:
+        from pyparsing import _trim_arity  # NOQA
+
+    from pyparsing import __version__
+    PYPARSING = "Python pyparsing v" + __version__
+
+from coconut.constants import (
+    use_packrat,
+    packrat_cache_size,
+    default_whitespace_chars,
+    varchars,
+)
 
 #-----------------------------------------------------------------------------------------------------------------------
-# MAIN:
+# SETUP:
 #-----------------------------------------------------------------------------------------------------------------------
 
+if use_packrat:
+    ParserElement.enablePackrat(packrat_cache_size)
 
-def main():
-    """Starts coconut."""
-    Command().start()
+ParserElement.setDefaultWhitespaceChars(default_whitespace_chars)
 
-
-def main_run():
-    """Starts coconut-run."""
-    Command().start(run=True)
-
-
-if __name__ == "__main__":
-    main()
+Keyword.setDefaultKeywordChars(varchars)

@@ -36,12 +36,12 @@ try:
 except ImportError:
     readline = None
 
-if PY26 or (3,) <= sys.version_info < (3, 3):
-    prompt_toolkit = None
-else:
+try:
     import prompt_toolkit
     import pygments
     from coconut.highlighter import CoconutLexer
+except ImportError:
+    prompt_toolkit = None
 
 from coconut.constants import (
     fixpath,
@@ -57,6 +57,7 @@ from coconut.constants import (
     tutorial_url,
     documentation_url,
     reserved_vars,
+    num_added_tb_layers,
 )
 from coconut.exceptions import (
     CoconutException,
@@ -71,7 +72,7 @@ from coconut.terminal import logger
 
 
 def openfile(filename, opentype="r+"):
-    """Returns an open file object."""
+    """Open a file using default_encoding."""
     return open(filename, opentype, encoding=default_encoding)  # using open from coconut.root
 
 
@@ -180,16 +181,18 @@ def kill_children():
 
 
 def splitname(path):
-    """Split a path into a directory and a name."""
+    """Split a path into a directory, name, and extensions."""
     dirpath, filename = os.path.split(path)
-    name = filename.split(os.path.extsep, 1)[0]
-    return dirpath, name
+    # we don't use os.path.splitext here because we want all extensions,
+    #  not just the last, to be put in exts
+    name, exts = filename.split(os.extsep, 1)
+    return dirpath, name, exts
 
 
 def run_file(path):
     """Run a module from a path and return its variables."""
     if PY26:
-        dirpath, name = splitname(path)
+        dirpath, name, _ = splitname(path)
         found = imp.find_module(name, [dirpath])
         module = imp.load_module("__main__", *found)
         return vars(module)
@@ -211,8 +214,10 @@ def call_output(cmd, **kwargs):
     return stdout, stderr, retcode
 
 
-def run_cmd(cmd, show_output=True, raise_errs=True):
-    """Runs a console command."""
+def run_cmd(cmd, show_output=True, raise_errs=True, **kwargs):
+    """Runs a console command.
+    When show_output=True, prints output and returns exit code, otherwise returns output.
+    When raise_errs=True, raises an error if command fails."""
     if not cmd or not isinstance(cmd, list):
         raise CoconutInternalException("console commands must be passed as non-empty lists")
     else:
@@ -224,11 +229,11 @@ def run_cmd(cmd, show_output=True, raise_errs=True):
             cmd[0] = which(cmd[0]) or cmd[0]
         logger.log_cmd(cmd)
         if show_output and raise_errs:
-            return subprocess.check_call(cmd)
+            return subprocess.check_call(cmd, **kwargs)
         elif show_output:
-            return subprocess.call(cmd)
+            return subprocess.call(cmd, **kwargs)
         else:
-            stdout, stderr, _ = call_output(cmd)
+            stdout, stderr, _ = call_output(cmd, **kwargs)
             return "".join(stdout + stderr)
 
 
@@ -236,9 +241,14 @@ def set_mypy_path(mypy_path):
     """Prepends to MYPYPATH."""
     original = os.environ.get(mypy_path_env_var)
     if original is None:
-        os.environ[mypy_path_env_var] = mypy_path
-    elif mypy_path not in original.split(os.pathsep):
-        os.environ[mypy_path_env_var] = mypy_path + os.pathsep + original
+        new_mypy_path = mypy_path
+    elif not original.startswith(mypy_path):
+        new_mypy_path = mypy_path + os.pathsep + original
+    else:
+        new_mypy_path = None
+    if new_mypy_path is not None:
+        logger.log(mypy_path_env_var + ":", new_mypy_path)
+        os.environ[mypy_path_env_var] = new_mypy_path
 
 
 def stdin_readable():
@@ -303,9 +313,9 @@ class Prompt(object):
                 return prompt_toolkit.prompt(msg, **self.prompt_kwargs())
             except EOFError:
                 raise  # issubclass(EOFError, Exception), so we have to do this
-            except Exception:
+            except (Exception, AssertionError):
                 logger.print_exc()
-                logger.show("Syntax highlighting failed; switching to --style none.")
+                logger.show_sig("Syntax highlighting failed; switching to --style none.")
                 self.style = None
         return input(msg)
 
@@ -366,7 +376,12 @@ class Runner(object):
         except SystemExit as err:
             self.exit(err.code)
         except BaseException:
-            traceback.print_exc()
+            etype, value, tb = sys.exc_info()
+            for i in range(num_added_tb_layers):
+                if tb is None:
+                    break
+                tb = tb.tb_next
+            traceback.print_exception(etype, value, tb)
             if all_errors_exit:
                 self.exit(1)
 
@@ -401,7 +416,7 @@ class Runner(object):
         with self.handling_errors(all_errors_exit):
             module_vars = run_file(path)
             self.vars.update(module_vars)
-            self.store("from " + os.path.basename(path) + " import *")
+            self.store("from " + splitname(path)[1] + " import *")
 
     def was_run_code(self, get_all=True):
         """Gets all the code that was run."""

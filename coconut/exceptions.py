@@ -21,13 +21,14 @@ from coconut.root import *  # NOQA
 
 import sys
 
-from pyparsing import lineno
+from coconut.pyparsing import lineno
 
 from coconut.constants import (
     openindent,
     closeindent,
     taberrfmt,
     default_encoding,
+    new_issue_url,
 )
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -166,12 +167,19 @@ class CoconutWarning(CoconutException):
     """Base Coconut warning."""
 
 
-class CoconutStyleWarning(CoconutStyleError, CoconutWarning):
-    """Coconut --strict warning."""
+class CoconutSyntaxWarning(CoconutSyntaxError, CoconutWarning):
+    """CoconutWarning with CoconutSyntaxError semantics."""
 
 
 class CoconutInternalException(CoconutException):
-    """Internal Coconut exceptions."""
+    """Internal Coconut exception."""
+
+    def message(self, message, item, extra):
+        """Creates the Coconut internal exception message."""
+        return (
+            super(CoconutInternalException, self).message(message, item, extra)
+            + " (you should report this at " + new_issue_url + ")"
+        )
 
 
 class CoconutDeferredSyntaxError(CoconutException):

@@ -27,6 +27,8 @@ import functools
 from contextlib import contextmanager
 from subprocess import CalledProcessError
 
+from coconut.pyparsing import PYPARSING
+
 from coconut.compiler import Compiler
 from coconut.exceptions import (
     CoconutException,
@@ -38,11 +40,13 @@ from coconut.constants import (
     code_exts,
     comp_ext,
     watch_interval,
+    icoconut_kernel_names,
     icoconut_kernel_dirs,
     minimum_recursion_limit,
     stub_dir,
     exit_chars,
     coconut_run_args,
+    verbose_mypy_args,
 )
 from coconut.command.util import (
     openfile,
@@ -89,15 +93,15 @@ class Command(object):
     def start(self, run=False):
         """Processes command-line arguments."""
         if run:
-            args, argv = coconut_run_args, []
-            # for coconut-run, all args beyond the source file should stay in sys.argv
+            args, argv = list(coconut_run_args), []
+            # for coconut-run, all args beyond the source file should be wrapped in an --argv
             for i in range(1, len(sys.argv)):
                 arg = sys.argv[i]
                 args.append(arg)
-                if not arg.startswith("-"):  # is source file
-                    argv = sys.argv[i:]
+                if not arg.startswith("-"):  # was source file
+                    argv = sys.argv[i + 1:]
                     break
-            sys.argv = argv
+            args += ["--argv"] + argv
         else:
             args = None
         self.cmd(args)
@@ -105,12 +109,12 @@ class Command(object):
     def cmd(self, args=None, interact=True):
         """Processes command-line arguments."""
         if args is None:
-            args = arguments.parse_args()
+            parsed_args = arguments.parse_args()
         else:
-            args = arguments.parse_args(args)
+            parsed_args = arguments.parse_args(args)
         self.exit_code = 0
         with self.handling_exceptions():
-            self.use_args(args, interact)
+            self.use_args(parsed_args, interact, original_args=args)
         self.exit_on_error()
 
     def setup(self, *args, **kwargs):
@@ -137,12 +141,16 @@ class Command(object):
         else:
             sys.setrecursionlimit(limit)
 
-    def use_args(self, args, interact=True):
+    def use_args(self, args, interact=True, original_args=None):
         """Handles command-line arguments."""
         logger.quiet, logger.verbose = args.quiet, args.verbose
         if DEVELOP:
             logger.tracing = args.trace
-        logger.log("Command args:", args)
+
+        logger.log("Using " + PYPARSING + ".")
+        if original_args is not None:
+            logger.log("Directly passed args:", original_args)
+        logger.log("Parsed args:", args)
 
         if args.recursion_limit is not None:
             self.set_recursion_limit(args.recursion_limit)
@@ -171,11 +179,16 @@ class Command(object):
                 logger.warn("extraneous --no-tco argument passed; --mypy implies --no-tco")
             self.set_mypy_args(args.mypy)
 
+        if args.argv is not None:
+            sys.argv = [args.source if args.source is not None else ""]
+            sys.argv.extend(args.argv)
+
         if args.source is not None:
             if args.interact and args.run:
                 logger.warn("extraneous --run argument passed; --interact implies --run")
             if args.package and self.mypy:
                 logger.warn("extraneous --package argument passed; --mypy implies --package")
+
             if args.standalone and args.package:
                 raise CoconutException("cannot compile as both --package and --standalone")
             if args.standalone and self.mypy:
@@ -429,9 +442,9 @@ class Command(object):
         if destpath is not None and os.path.isfile(destpath):
             with openfile(destpath, "r") as opened:
                 compiled = readfile(opened)
-                hashash = gethash(compiled)
-                if hashash is not None and hashash == self.comp.genhash(package, code):
-                    return compiled
+            hashash = gethash(compiled)
+            if hashash is not None and hashash == self.comp.genhash(package, code):
+                return compiled
         return None
 
     def get_input(self, more=False):
@@ -440,7 +453,8 @@ class Command(object):
         try:
             received = self.prompt.input(more)
         except KeyboardInterrupt:
-            printerr("\nKeyboardInterrupt")
+            print()
+            printerr("KeyboardInterrupt")
         except EOFError:
             print()
             self.exit_runner()
@@ -458,8 +472,8 @@ class Command(object):
 
     def start_prompt(self):
         """Starts the interpreter."""
-        print("Coconut Interpreter:")
-        print('(type "exit()" or press Ctrl-D to end)')
+        logger.show("Coconut Interpreter:")
+        logger.show('(enter exit() or press Ctrl-D to end)')
         self.start_running()
         while self.running:
             try:
@@ -546,12 +560,17 @@ class Command(object):
             if "--python-version" not in self.mypy_args:
                 self.mypy_args += ["--python-version", ".".join(str(v) for v in self.comp.target_info_len2)]
 
+            if logger.verbose:
+                for arg in verbose_mypy_args:
+                    if arg not in self.mypy_args:
+                        self.mypy_args.append(arg)
+
             logger.log("MyPy args:", self.mypy_args)
 
     def run_mypy(self, paths=[], code=None):
         """Run MyPy with arguments."""
-        set_mypy_path(stub_dir)
         if self.mypy:
+            set_mypy_path(stub_dir)
             from coconut.command.mypy import mypy_run
             args = paths + self.mypy_args
             if code is not None:
@@ -567,7 +586,7 @@ class Command(object):
 
     def start_jupyter(self, args):
         """Starts Jupyter with the Coconut kernel."""
-        install_func = functools.partial(run_cmd, show_output=logger.verbose or not args)
+        install_func = functools.partial(run_cmd, show_output=logger.verbose)
 
         try:
             install_func(["jupyter", "--version"])
@@ -576,17 +595,28 @@ class Command(object):
         else:
             jupyter = "jupyter"
 
-        for icoconut_kernel_dir in icoconut_kernel_dirs:
-            install_args = [jupyter, "kernelspec", "install", icoconut_kernel_dir, "--replace"]
-            try:
-                install_func(install_args)
-            except CalledProcessError:
-                user_install_args = install_args + ["--user"]
+        # always install kernels if given no args, otherwise only if there's a kernel missing
+        do_install = not args
+        if not do_install:
+            kernel_list = run_cmd([jupyter, "kernelspec", "list"], show_output=False, raise_errs=False)
+            do_install = any(ker not in kernel_list for ker in icoconut_kernel_names)
+
+        if do_install:
+            success = True
+            for icoconut_kernel_dir in icoconut_kernel_dirs:
+                install_args = [jupyter, "kernelspec", "install", icoconut_kernel_dir, "--replace"]
                 try:
-                    install_func(user_install_args)
+                    install_func(install_args)
                 except CalledProcessError:
-                    logger.warn("kernel install failed on command'", " ".join(install_args))
-                    self.register_error(errmsg="Jupyter error")
+                    user_install_args = install_args + ["--user"]
+                    try:
+                        install_func(user_install_args)
+                    except CalledProcessError:
+                        logger.warn("kernel install failed on command'", " ".join(install_args))
+                        self.register_error(errmsg="Jupyter error")
+                        success = False
+            if success:
+                logger.show_sig("Successfully installed Coconut Jupyter kernel.")
 
         if args:
             if args[0] == "console":
@@ -610,13 +640,14 @@ class Command(object):
 
         source = fixpath(source)
 
-        print()
+        logger.show()
         logger.show_tabulated("Watching", showpath(source), "(press Ctrl-C to end)...")
 
         def recompile(path):
             if os.path.isfile(path) and os.path.splitext(path)[1] in code_exts:
                 with self.handling_exceptions():
-                    self.run_mypy(self.compile_path(path, write, package, run, force, show_unchanged=False))
+                    filepaths = self.compile_path(path, write, package, run, force, show_unchanged=False)
+                    self.run_mypy(filepaths)
 
         watcher = RecompilationWatcher(recompile)
         observer = Observer()
@@ -629,7 +660,7 @@ class Command(object):
                     time.sleep(watch_interval)
                     watcher.keep_watching()
             except KeyboardInterrupt:
-                logger.show("Got KeyboardInterrupt; stopping watcher.")
+                logger.show_sig("Got KeyboardInterrupt; stopping watcher.")
             finally:
                 observer.stop()
                 observer.join()

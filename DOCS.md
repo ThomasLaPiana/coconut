@@ -24,26 +24,42 @@ Since Coconut is hosted on the [Python Package Index](https://pypi.python.org/py
 ```
 pip install coconut
 ```
-which will install Coconut and its required dependencies. Coconut also has some optional dependencies, which can be installed by entering
+which will install Coconut and its required dependencies.
+
+Coconut also has optional dependencies, which can be installed by entering
 ```
-pip install coconut[all]
+pip install coconut[name_of_optional_dependency]
 ```
-which will enable the use of Coconut's `--jobs`, `--watch`, `--jupyter`, and `--mypy` flags. To install the optional dependencies only for a particular flag, simply put the flag name in place of `all`.
+or, to install multiple optional dependencies,
+```
+pip install coocnut[opt_dep_1,opt_dep_2]
+```
+The full list of optional dependencies is:
+
+- `all`: alias for `jupyter,watch,jobs,mypy`; this is the recommended way to install a feature-complete version of Coconut,
+- `jupyter/ipython`: enables use of the `--jupyter` / `--ipython` flag,
+- `watch`: enables use of the `--watch` flag,
+- `jobs`: improves use of the `--jobs` flag,
+- `mypy`: enables use of the `--mypy` flag,
+- `cPyparsing`: significantly speeds up compilation if your platform supports it by making use of [`cPyparsing`](https://github.com/evhub/cpyparsing),
+- `tests`: everything necessary to run Coconut's test suite,
+- `docs`: everything necessary to build Coconut's documentation, and
+- `dev`: everything necessary to develop on Coconut, including all of the dependencies above.
 
 Alternatively, if you want to test out Coconut's latest and greatest, enter
 ```
 pip install coconut-develop
 ```
-which will install the most recent working [development build](https://github.com/evhub/coconut/tree/develop) (optional dependency installation is also supported in the same manner as above if you want). For more information on the current development build, check out the [development version of this documentation](DOCS.html). Be warned: `coconut-develop` is likely to be unstable—if you find a bug, please report it by [creating a new issue](https://github.com/evhub/coconut/issues/new).
+which will install the most recent working version from Coconut's [`develop` branch](https://github.com/evhub/coconut/tree/develop). Optional dependency installation is supported in the same manner as above. For more information on the current development build, check out the [development version of this documentation](http://coconut.readthedocs.io/en/develop/DOCS.html). Be warned: `coconut-develop` is likely to be unstable—if you find a bug, please report it by [creating a new issue](https://github.com/evhub/coconut/issues/new).
 
 ### Usage
 
 ```
 coconut [-h] [-v] [-t version] [-i] [-p] [-a] [-l] [-k] [-w] [-r] [-n]
         [-d] [-q] [-s] [--no-tco] [-c code] [-j processes] [-f]
-        [--minify] [--jupyter ...] [--mypy ...] [--tutorial]
-        [--documentation] [--style name] [--recursion-limit limit]
-        [--verbose] [--trace]
+        [--minify] [--jupyter ...] [--mypy ...] [--argv ...]
+        [--tutorial] [--documentation] [--style name]
+        [--recursion-limit limit] [--verbose] [--trace]
         [source] [dest]
 ```
 
@@ -61,57 +77,69 @@ dest                destination directory for compiled files (defaults to
 -h, --help            show this help message and exit
 -v, --version         print Coconut and Python version information
 -t version, --target version
-                    specify target Python version (defaults to universal)
+                      specify target Python version (defaults to universal)
 -i, --interact        force the interpreter to start (otherwise starts if no
-                    other command is given) (implies --run)
+                      other command is given) (implies --run)
 -p, --package         compile source as part of a package (defaults to only
-                    if source is a directory)
+                      if source is a directory)
 -a, --standalone      compile source as standalone files (defaults to only
-                    if source is a single file)
+                      if source is a single file)
 -l, --line-numbers, --linenumbers
-                    add line number comments for ease of debugging
+                      add line number comments for ease of debugging
 -k, --keep-lines, --keeplines
-                    include source code in comments for ease of debugging
+                      include source code in comments for ease of debugging
 -w, --watch           watch a directory and recompile on changes
 -r, --run             execute compiled Python
 -n, --no-write, --nowrite
-                    disable writing compiled Python
+                      disable writing compiled Python
 -d, --display         print compiled Python
 -q, --quiet           suppress all informational output (combine with
-                    --display to write runnable code to stdout)
+                      --display to write runnable code to stdout)
 -s, --strict          enforce code cleanliness standards
---no-tco, --notco     disable tail call optimization for ease of debugging
+--no-tco, --notco     disable tail call optimization
 -c code, --code code  run Coconut passed in as a string (can also be piped
-                    into stdin)
+                      into stdin)
 -j processes, --jobs processes
-                    number of additional processes to use (defaults to 0)
-                    (pass 'sys' to use machine default)
+                      number of additional processes to use (defaults to 0)
+                      (pass 'sys' to use machine default)
 -f, --force           force overwriting of compiled Python (otherwise only
-                    overwrites when source code or compilation parameters
-                    change)
+                      overwrites when source code or compilation parameters
+                      change)
 --minify              reduce size of compiled Python
 --jupyter ..., --ipython ...
-                    run Jupyter/IPython with Coconut as the kernel
-                    (remaining args passed to Jupyter)
+                      run Jupyter/IPython with Coconut as the kernel
+                      (remaining args passed to Jupyter)
 --mypy ...            run MyPy on compiled Python (remaining args passed to
-                    MyPy) (implies --package --no-tco)
---tutorial            open the Coconut tutorial in the default web browser
---documentation       open the Coconut documentation in the default web
-                    browser
+                      MyPy) (implies --package --no-tco)
+--argv ...            set sys.argv to source plus remaining args for use in
+                      Coconut script being run
+--tutorial            open Coconut's tutorial in the default web browser
+--documentation       open Coconut's documentation in the default web
+                      browser
 --style name          Pygments syntax highlighting style (or 'none' to
-                    disable) (defaults to COCONUT_STYLE environment
-                    variable, if it exists, otherwise 'default')
+                      disable) (defaults to COCONUT_STYLE environment
+                      variable, if it exists, otherwise 'default')
 --recursion-limit limit, --recursionlimit limit
-                    set maximum recursion depth in compiler (defaults to
-                    2000)
+                      set maximum recursion depth in compiler (defaults to
+                      2000)
 --verbose             print verbose debug output
---trace               show verbose parsing data (only available in coconut-
-                    develop)
+--trace               print verbose parsing data (only available in coconut-
+                      develop)
 ```
 
 ### Coconut Scripts
 
-To run a Coconut file as a script, Coconut provides the command `coconut-run` as an alias for `coconut --run --quiet` that also passes all additional command-line arguments to the script being run. `coconut-run` will quietly compile the file if it's been changed or use the existing compiled Python if it hasn't and then run that. `coconut-run` can be used in a Unix shebang to create a Coconut script with the following line:
+To run a Coconut file as a script, Coconut provides the command
+```
+coconut-run <source> <args>
+```
+as an alias for
+```
+coconut --run --quiet --target sys <source> --argv <args>
+```
+which will quietly compile the file if it's been changed, or use the existing compiled Python if it hasn't, and run it, passing any additionally arguments to the script, mimicking how the `python` command works.
+
+`coconut-run` can be used in a Unix shebang line to create a Coconut script by adding the following line to the start of your script:
 ```bash
 #!/usr/bin/env coconut-run
 ```
@@ -171,7 +199,7 @@ If the `--strict` (or `-s`) flag is enabled, Coconut will throw errors on variou
 - semicolons at end of lines,
 - use of the Python-style `lambda` statement,
 - use of `u` to denote Unicode strings, and
-- use of backslash continuations (use parenthetical continuation instead).
+- use of backslash continuations (use [parenthetical continuation](#enhanced-parenthetical-continuation) instead).
 
 It is recommended that you use the `--strict` (or `-s`) flag if you are starting a new Coconut project, as it will help you write cleaner code.
 
@@ -225,11 +253,9 @@ The line magic `%load_ext coconut` will load Coconut as an extension, providing 
 
 ### MyPy Integration
 
-Coconut has the ability to integrate with [MyPy](http://mypy-lang.org/) to provide optional static type-checking, including for all Coconut built-ins.
+Coconut has the ability to integrate with [MyPy](http://mypy-lang.org/) to provide optional static type-checking, including for all Coconut built-ins. Simply pass `--mypy` to enable MyPy integration, though be careful to pass it only as the last argument, since all arguments after `--mypy` are passed to `mypy`, not Coconut.
 
-Simply pass `--mypy` (be careful to pass it only as the last argument), use [standard Python 3 type annotation syntax](https://www.python.org/dev/peps/pep-0484/), and Coconut will take care of the rest. By default, Coconut compiles Python 3 type annotations into `mypy --py2` compatible type comments. If you want to keep the Python 3 type annotations instead, simply pass `--target 3`.
-
-In addition to function argument type annotation, Coconut also supports variable type annotation using the [new Python 3.6 syntax](https://www.python.org/dev/peps/pep-0526/), which compiles to `mypy --py2` compatible type comments unless `--target 3.6` is specified.
+To explicitly annotate your code with types for MyPy to check, Coconut supports [Python 3 function type annotations](https://www.python.org/dev/peps/pep-0484/), [Python 3.6 variable type annotations](https://www.python.org/dev/peps/pep-0526/), and even Coconut's own [enhanced type annotation syntax](#enhanced-type-annotations). By default, all type annotations are compiled to Python-2-compatible type comments, which means all of the above works on any Python version.
 
 Coconut even supports `--mypy` in the interpreter, which will intelligently scan each new line of code, in the context of previous lines, for newly-introduced MyPy errors. For example:
 ```coconut
@@ -241,9 +267,40 @@ _Note: Since [tail call optimization](#tail-call-optimization) prevents proper t
 
 ## Operators
 
+In order of precedence, highest first, the operators supported in Coconut are:
+```
+================= ==========================
+Symbol(s)         Associativity
+================= ==========================
+..                n/a won't capture call
+**                right
++, -, ~           unary
+*, /, //, %, @    left
++, -              left
+<<, >>            left
+&                 left
+^                 left
+|                 left
+::                n/a lazy
+a `b` c           left captures lambda
+??                left short-circuit
+..>, <..          n/a captures lambda
+|>, <|, |*>, <*|  left captures lambda
+==, !=, <, >,
+  <=, >=,
+  in, not in,
+  is, is not      n/a
+not               unary
+and               left short-circuit
+or                left short-circuit
+a if b else c     ternary left short-circuit
+->                right
+================= ==========================
+```
+
 ### Lambdas
 
-Coconut provides the simple, clean `->` operator as an alternative to Python's `lambda` statements. The syntax for the `->` operator is `(arguments) -> expression`. The operator has the same precedence as the old statement, which means it will often be necessary to surround the lambda in parentheses.
+Coconut provides the simple, clean `->` operator as an alternative to Python's `lambda` statements. The syntax for the `->` operator is `(parameters) -> expression` (or `parameter -> expression` for one-argument lambdas). The operator has the same precedence as the old statement, which means it will often be necessary to surround the lambda in parentheses, and is right-associative.
 
 Additionally, Coconut also supports an implicit usage of the `->` operator of the form `(-> expression)`, which is equivalent to `((_=None) -> expression)`, which allows an implicit lambda to be used both when no arguments are required, and when one argument (assigned to `_`) is required.
 
@@ -278,9 +335,9 @@ print(list(dubsums))
 
 ### Partial Application
 
-Coconut uses a `$` sign right after a function's name but before the open parenthesis used to call the function to denote partial application. It has the same precedence as subscription.
+Coconut uses a `$` sign right after a function's name but before the open parenthesis used to call the function to denote partial application.
 
-Coconut's partial application also supports the use of a `?` to skip partially applying an argument, deferring filling in that argument until the partially-applied function is called. This is useful if you want to partially apply argument(s) that aren't first in the argument order.
+Coconut's partial application also supports the use of a `?` to skip partially applying an argument, deferring filling in that argument until the partially-applied function is called. This is useful if you want to partially apply arguments that aren't first in the argument order.
 
 ##### Rationale
 
@@ -319,13 +376,15 @@ print(list(expnums))
 
 ### Pipeline
 
-Coconut uses pipe operators for pipeline-style function application. All the operators have a precedence in-between infix calls and comparisons and are left-associative. All operators also support in-place versions. The different operators are:
+Coconut uses pipe operators for pipeline-style function application. All the operators have a precedence in-between function composition pipes and comparisons, and are left-associative. All operators also support in-place versions. The different operators are:
 ```coconut
 (|>)    => pipe forward
 (|*>)   => multiple-argument pipe forward
 (<|)    => pipe backward
 (<*|)   => multiple-argument pipe backward
 ```
+
+Additionally, all pipe operators support a lambda as the second argument, despite lambdas having a lower precedence. Thus, `10 |> x -> x**2` is valid, though the body of the lambda will still capture all following pipe operators.
 
 ##### Example
 
@@ -344,7 +403,13 @@ print(sq(operator.add(1, 2)))
 
 ### Compose
 
-Coconut uses the `..` operator for function composition. It has a precedence in-between subscription and exponentiation. The in-place operator is `..=`.
+Coconut has three different function composition operators: `..`, `..>`, and `<..`. Both `..` and `<..` use math-style "backwards" function composition, where the first function is called last, while `..>` uses "forwards" function composition, where first function is called first.
+
+The `..>` and `<..` function composition pipe operators cannot be used together in the same expression (unlike normal pipes) and have precedence in-between `None`-coalescing and normal pipes.
+
+The `..` operator has lower precedence than attribute access (`.`), slicing (`[]`), etc., except for function calling, which it has higher precedence than. Thus, `a.b..c.d` is equivalent to `(a.b)..(c.d)`, while `f..g(x)` is equivalent to `(f..g)(x)`.
+
+The in-place composition operators are `..=` (or equivalently `<..=`) and `..>=`.
 
 ##### Example
 
@@ -392,7 +457,7 @@ _Can't be done without a complicated iterator comprehension in place of the lazy
 
 ### Iterator Slicing
 
-Coconut uses a `$` sign right after an iterator before a slice to perform iterator slicing. Coconut's iterator slicing works much the same as Python's sequence slicing, and looks much the same as Coconut's partial application, but with brackets instead of parentheses. It has the same precedence as subscription.
+Coconut uses a `$` sign right after an iterator before a slice to perform iterator slicing. Coconut's iterator slicing works much the same as Python's sequence slicing, and looks much the same as Coconut's partial application, but with brackets instead of parentheses.
 
 Iterator slicing works just like sequence slicing, including support for negative indices and slices, and support for `slice` objects in the same way as can be done with normal slicing. Iterator slicing makes no guarantee, however, that the original iterator passed to it be preserved (to preserve the iterator, use Coconut's [`tee` function](#tee)).
 
@@ -407,6 +472,24 @@ map((x)->x*2, range(10**100))$[-1] |> print
 
 **Python:**
 _Can't be done without a complicated iterator slicing function and inspection of custom objects. The necessary definitions in Python can be found in the Coconut header._
+
+### None Coalescing
+
+Coconut provides `??` as a `None`-coalescing operator, similar to the `??` null-coalescing operator in C#. The `None`-coalescing operator evaluates to its left operand if that operand is not `None`, otherwise its right operand. The `None`-coalescing operator is short-circuiting, such that if the left operand is not `None`, it will not evaluate the right operand.
+
+The `None`-coalescing operator has a precedence in-between infix function calls and composition pipes, and is left-associative. The in-place operator is `??=`.
+
+##### Example
+
+**Coconut:**
+```coconut
+could_be_none() ?? calculate_default_value()
+```
+
+**Python:**
+```coconut_python
+(lambda result: result if result is not None else calculate_default_value())(could_be_none())
+```
 
 ### Unicode Alternatives
 
@@ -444,16 +527,18 @@ Coconut supports Unicode alternatives to many different operator symbols. The Un
 
 ### `data`
 
+Coconut's `data` keyword is used to create immutable, algebraic data types with built-in support for destructuring [pattern-matching](#match) and [`fmap`](#fmap).
+
 The syntax for `data` blocks is a cross between the syntax for functions and the syntax for classes. The first line looks like a function definition, but the rest of the body looks like a class, usually containing method definitions. This is because while `data` blocks actually end up as classes in Python, Coconut automatically creates a special, immutable constructor based on the given arguments.
 
-Coconut `data` blocks create immutable classes derived from `collections.namedtuple` and made immutable with `__slots__`. Coconut data statement syntax looks like:
+Coconut data statement syntax looks like:
 ```coconut
 data <name>(<args>) [from <inherits>]:
     <body>
 ```
-`<name>` is the name of the new data type, `<args>` are the arguments to its constructor as well as the names of its attributes, `<body>` contains the data type's methods, and `<inherits>` optionally contains any desired base classes.
+`<name>` is the name of the new data type, `<args>` are the arguments to its constructor as well as the names of its attributes, `<body>` contains the data type's methods, and `<inherits>` optionally contains any desired base classes. Coconut also supports an extended version where `<args>` can contain a starred argument to collect extra parameters.
 
-In addition to supporting standard `collections.namedtuple` subclassing when `<args>` is a list of names, Coconut also supports an extended version where `<args>` can contain a starred argument to collect extra parameters.
+Writing constructors for `data` types must be done using the `__new__` method instead of the `__init__` method. For helping to easily write `__new__` methods, Coconut provides the [datamaker](#datamaker) built-in.
 
 Subclassing `data` types can be done easily by inheriting from them either in another `data` statement or a normal Python `class`. If a normal `class` statement is used, making the new subclass immutable will require adding the line
 ```coconut
@@ -536,7 +621,7 @@ print(v)
 print(abs(v))
 v.x = 2
 ```
-```coconut
+```coconut_python
 import collections
 class Empty(collections.namedtuple("Empty", "")):
     __slots__ = ()
@@ -584,19 +669,23 @@ pattern ::= (
     | "None" | "True" | "False"     # constants
     | "=" NAME                      # check
     | NUMBER                        # numbers
-    | STRING                        # strings
+    | STRING                        # stringsh
     | [pattern "as"] NAME           # capture
     | NAME "(" patterns ")"         # data types
+    | pattern "is" exprs            # type-checking
+    | pattern "and" pattern         # match all
+    | pattern "or" pattern          # match any
+    | "{" pattern_pairs             # dictionaries
+        ["," **" NAME] "}"
+    | ["s"] "{" pattern_consts "}"  # sets
     | "(" patterns ")"              # sequences can be in tuple form
     | "[" patterns "]"              #  or in list form
     | "(|" patterns "|)"            # lazy lists
-    | "{" pattern_pairs "}"         # dictionaries
-    | ["s"] "{" pattern_consts "}"  # sets
     | ("(" | "[")                   # star splits
-        patterns,
-        "*" middle,
         patterns
-      (")" | "]")                       # must both be parens or brackets
+        "*" middle
+        patterns
+      (")" | "]")
     | (                             # head-tail splits
         "(" patterns ")"
         | "[" patterns "]"
@@ -617,10 +706,9 @@ pattern ::= (
         | "[" patterns "]"
         | "(|" patterns "|)"
       ) "::" pattern
-    | pattern "is" exprs            # type-checking
-    | pattern "and" pattern         # match all
-    | pattern "or" pattern          # match any
-    )
+    | ([STRING "+"] NAME            # complex string matching
+        ["+" STRING])
+)
 ```
 
 ##### Semantic Specification
@@ -636,14 +724,16 @@ pattern ::= (
 - Data Types (`<name>(<args>)`): will check that whatever is in that position is of data type `<name>` and will match the attributes to `<args>`.
 - Lists (`[<patterns>]`), Tuples (`(<patterns>)`): will only match a sequence (`collections.abc.Sequence`) of the same length, and will check the contents against `<patterns>`.
 - Lazy lists (`(|<patterns>|)`): same as list or tuple matching, but checks iterable (`collections.abc.Iterable`) instead of sequence.
-- Dicts (`{<pairs>}`): will only match a mapping (`collections.abc.Mapping`) of the same length, and will check the contents against `<pairs>`.
+- Fixed-Length Dicts (`{<pairs>}`): will only match a mapping (`collections.abc.Mapping`) of the same length, and will check the contents against `<pairs>`.
+- Dicts With Rest (`{<pairs>, **<rest>}`): will match a mapping (`collections.abc.Mapping`) containing all the `<pairs>`, and will put a `dict` of everything else into `<rest>`.
 - Sets (`{<constants>}`): will only match a set (`collections.abc.Set`) of the same length and contents.
 - Head-Tail Splits (`<list/tuple> + <var>`): will match the beginning of the sequence against the `<list/tuple>`, then bind the rest to `<var>`, and make it the type of the construct used.
 - Init-Last Splits (`<var> + <list/tuple>`): exactly the same as head-tail splits, but on the end instead of the beginning of the sequence.
 - Head-Last Splits (`<list/tuple> + <var> + <list/tuple>`): the combination of a head-tail and an init-last split.
 - Iterator Splits (`<list/tuple/lazy list> :: <var>`): will match the beginning of an iterable (`collections.abc.Iterable`) against the `<list/tuple/lazy list>`, then bind the rest to `<var>` or check that the iterable is done.
+- Complex String Matching (`<string> + <var> + <string>`): matches strings that start and end with the given substrings, binding the middle to `<var>`.
 
-_Note: Like [iterator slicing](#iterator-slicing), iterator and lazy list matching make no guarantee that the original iterator matched against be preserved (to preserve the iterator, use Coconut's [`tee` function](#tee)._
+_Note: Like [iterator slicing](#iterator-slicing), iterator and lazy list matching make no guarantee that the original iterator matched against be preserved (to preserve the iterator, use Coconut's [`tee` function](#tee))._
 
 When checking whether or not an object can be matched against in a particular fashion, Coconut makes use of Python's abstract base classes. Therefore, to enable proper matching for a custom object, register it with the proper abstract base classes.
 
@@ -865,6 +955,109 @@ mod$ <| 5 <| 3
 mod(5, 3)
 ```
 
+### Enhanced Type Annotations
+
+Since Coconut syntax is a superset of Python 3 syntax, it supports [Python 3 function type annotation syntax](https://www.python.org/dev/peps/pep-0484/) and [Python 3.6 variable type annotation syntax](https://www.python.org/dev/peps/pep-0526/). By default, Coconut compiles all type annotations into Python-2-compatible type comments. If you want to keep the type annotations instead, simply pass a `--target` that supports them.
+
+_Note: When compiling type annotations to Python 3 syntax, Coconut will wrap every annotation in a string when in a position where Python would otherwise evaluate it (Python 3 function annotation), so that all type annotations are only ever evaluated at compile time, never at run time._
+
+Additionally, Coconut adds special syntax for making type annotations easier and simpler to write. When inside of a type annotation, Coconut treats certain syntax constructs differently, compiling them to type annotations instead of what they would normally represent. Specifically, Coconut applies the following transformations:
+```coconut
+<type>[]
+    => typing.Sequence[<type>]
+() -> <ret>
+    => typing.Callable[[], <ret>]
+<arg> -> <ret>
+    => typing.Callable[[<arg>], <ret>]
+(<args>) -> <ret>
+    => typing.Callable[[<args>], <ret>]
+-> <ret>
+    => typing.Callable[..., <ret>]
+```
+where `typing` is the Python 3.5 built-in [`typing` module](https://docs.python.org/3/library/typing.html).
+
+##### Example
+
+**Coconut:**
+```coconut
+def int_map(
+    f: int -> int,
+    xs: int[],
+) -> int[] =
+    xs |> map$(f) |> list
+```
+
+**Python:**
+```coconut_python
+import typing  # unlike this typing import, Coconut produces universal code
+def int_map(
+    f,  # type: typing.Callable[[int], int]
+    xs,  # type: typing.Sequence[int]
+):
+    # type: (...) -> typing.Sequence[int]
+    return list(map(f, xs))
+```
+
+### Operator Functions
+
+Coconut uses a simple operator function short-hand: surround an operator with parentheses to retrieve its function. Similarly to iterator comprehensions, if the operator function is the only argument to a function, the parentheses of the function call can also serve as the parentheses for the operator function.
+
+##### Rationale
+
+A very common thing to do in functional programming is to make use of function versions of built-in operators: currying them, composing them, and piping them. To make this easy, Coconut provides a short-hand syntax to access operator functions.
+
+##### Full List
+
+```coconut
+(|>)        => # pipe forward
+(|*>)       => # multi-arg pipe forward
+(<|)        => # pipe backward
+(<*|)       => # multi-arg pipe backward
+(..), (<..) => # backward function composition
+(..>)       => # forward function composition
+(.)         => (getattr)
+(::)        => (itertools.chain) # will not evaluate its arguments lazily
+($)         => (functools.partial)
+(+)         => (operator.add)
+(-)         => # 1 arg: operator.neg, 2 args: operator.sub
+(*)         => (operator.mul)
+(**)        => (operator.pow)
+(/)         => (operator.truediv)
+(//)        => (operator.floordiv)
+(%)         => (operator.mod)
+(&)         => (operator.and_)
+(^)         => (operator.xor)
+(|)         => (operator.or_)
+(<<)        => (operator.lshift)
+(>>)        => (operator.rshift)
+(<)         => (operator.lt)
+(>)         => (operator.gt)
+(==)        => (operator.eq)
+(<=)        => (operator.le)
+(>=)        => (operator.ge)
+(!=)        => (operator.ne)
+(~)         => (operator.inv)
+(@)         => (operator.matmul)
+(not)       => (operator.not_)
+(and)       => # boolean and
+(or)        => # boolean or
+(is)        => (operator.is_)
+(in)        => (operator.contains)
+```
+
+##### Example
+
+**Coconut:**
+```coconut
+(range(0, 5), range(5, 10)) |*> map$(+) |> list |> print
+```
+
+**Python:**
+```coconut_python
+import operator
+print(list(map(operator.add, range(0, 5), range(5, 10))))
+```
+
 ### Set Literals
 
 Coconut allows an optional `s` to be prepended in front of Python set literals. While in most cases this does nothing, in the case of the empty set it lets Coconut know that it is an empty set and not an empty dictionary. Additionally, an `f` is also supported, in which case a Python `frozenset` will be generated instead of a normal set.
@@ -933,11 +1126,11 @@ Coconut will perform automatic tail call optimization and tail recursion elimina
 1. it must directly return (using either `return` or [assignment function notation](#assignment-functions)) a call to itself (tail recursion elimination, the most powerful optimization) or another function (tail call optimization).
 2. it must not be a generator (uses `yield`) or an asynchronous function (uses `async`).
 
-_Note: Tail call optimization (though not tail recursion elimination) will work even for 1) mutual recursion and 2) pattern-matching functions split across multiple definitions using [`addpattern`](#addpattern) or [`prepattern`](#prepattern)._
+_Note: Tail call optimization (though not tail recursion elimination) will work even for 1) mutual recursion and 2) pattern-matching functions split across multiple definitions using [`addpattern`](#addpattern)._
 
 If you are encountering a `RuntimeError` due to maximum recursion depth, it is highly recommended that you rewrite your function to meet either the criteria above for tail call optimization, or the corresponding criteria for [`recursive_iterator`](#recursive-iterator), either of which should prevent such errors.
 
-_Note: Tail call optimization and tail recursion elimination can be turned off by passing the `--no-tco` command-line option._
+_Note: Tail call optimization (though not tail recursion elimination) will be turned off if you pass the `--no-tco` command-line option, which is useful if you are having trouble reading your tracebacks and/or need maximum performance._
 
 ##### Example
 
@@ -966,65 +1159,6 @@ _Showcases tail call optimization._
 
 **Python:**
 _Can't be done without rewriting the function(s)._
-
-### Operator Functions
-
-Coconut uses a simple operator function short-hand: surround an operator with parentheses to retrieve its function. Similarly to iterator comprehensions, if the operator function is the only argument to a function, the parentheses of the function call can also serve as the parentheses for the operator function.
-
-##### Rationale
-
-A very common thing to do in functional programming is to make use of function versions of built-in operators: currying them, composing them, and piping them. To make this easy, Coconut provides a short-hand syntax to access operator functions.
-
-##### Full List
-
-```coconut
-(|>)        => # pipe forward
-(|*>)       => # multi-arg pipe forward
-(<|)        => # pipe backward
-(<*|)       => # multi-arg pipe backward
-(..)        => # function composition
-(.)         => (getattr)
-(::)        => (itertools.chain) # will not evaluate its arguments lazily
-($)         => (functools.partial)
-(+)         => (operator.add)
-(-)         => # 1 arg: operator.neg, 2 args: operator.sub
-(*)         => (operator.mul)
-(**)        => (operator.pow)
-(/)         => (operator.truediv)
-(//)        => (operator.floordiv)
-(%)         => (operator.mod)
-(&)         => (operator.and_)
-(^)         => (operator.xor)
-(|)         => (operator.or_)
-(<<)        => (operator.lshift)
-(>>)        => (operator.rshift)
-(<)         => (operator.lt)
-(>)         => (operator.gt)
-(==)        => (operator.eq)
-(<=)        => (operator.le)
-(>=)        => (operator.ge)
-(!=)        => (operator.ne)
-(~)         => (operator.inv)
-(@)         => (operator.matmul)
-(not)       => (operator.not_)
-(and)       => # boolean and
-(or)        => # boolean or
-(is)        => (operator.is_)
-(in)        => (operator.contains)
-```
-
-##### Example
-
-**Coconut:**
-```coconut
-(range(0, 5), range(5, 10)) |*> map$(+) |> list |> print
-```
-
-**Python:**
-```coconut_python
-import operator
-print(list(map(operator.add, range(0, 5), range(5, 10))))
-```
 
 ### Assignment Functions
 
@@ -1091,7 +1225,7 @@ _Can't be done without a long series of checks at the top of the function. See t
 
 ### Infix Functions
 
-Coconut allows for infix function calling, where a function is surrounded by backticks and then can have arguments placed in front of or behind it. Backtick calling has a precedence in-between chaining and piping.
+Coconut allows for infix function calling, where an expression that evaluates to a function is surrounded by backticks and then can have arguments placed in front of or behind it. Infix calling has a precedence in-between chaining and `None`-coalescing, and is left-associative.
 
 Coconut also supports infix function definition to make defining functions that are intended for infix usage simpler. The syntax for infix function definition is
 ```coconut
@@ -1299,6 +1433,35 @@ cdef f(x):
     return g(x)
 ```
 
+### Enhanced Parenthetical Continuation
+
+Since Coconut syntax is a superset of Python 3 syntax, Coconut supports the same line continuation syntax as Python. That means both backslash line continuation and implied line continuation inside of parentheses, brackets, or braces will all work.
+
+In Python, however, there are some cases (such as multiple `with` statements) where only backslash continuation, and not parenthetical continuation, is supported. Coconut adds support for parenthetical continuation in all these cases.
+
+Supporting parenthetical continuation everywhere allows the [PEP 8](https://www.python.org/dev/peps/pep-0008/) convention, which avoids backslash continuation in favor of implied parenthetical continuation, to always be possible to follow. From PEP 8:
+
+> The preferred way of wrapping long lines is by using Python's implied line continuation inside parentheses, brackets and braces. Long lines can be broken over multiple lines by wrapping expressions in parentheses. These should be used in preference to using a backslash for line continuation.
+
+_Note: Passing `--strict` will enforce the PEP 8 convention by disallowing backslash continuations._
+
+##### Example
+
+**Coconut:**
+```coconut
+with (open('/path/to/some/file/you/want/to/read') as file_1,
+      open('/path/to/some/file/being/written', 'w') as file_2):
+    file_2.write(file_1.read())
+```
+
+**Python:**
+```coconut_python
+# split into two with statements for Python 2.6 compatibility
+with open('/path/to/some/file/you/want/to/read') as file_1:
+    with open('/path/to/some/file/being/written', 'w') as file_2:
+        file_2.write(file_1.read())
+```
+
 ## Built-Ins
 
 ### Enhanced Built-Ins
@@ -1346,32 +1509,6 @@ def factorial(0) = 1
 
 @addpattern(factorial)
 def factorial(n) = n * factorial(n - 1)
-```
-
-**Python:**
-_Can't be done without a complicated decorator definition and a long series of checks for each pattern-matching. See the compiled code for the Python syntax._
-
-### `prepattern`
-
-Takes one argument that is a [pattern-matching function](#pattern-matching-functions), and returns a decorator that adds the patterns in the existing function to the new function being decorated, where the new patterns are checked first, then the existing.
-
-Equivalent to:
-```
-def prepattern(base_func):
-    """Decorator to add a new case to a pattern-matching function, where the new case is checked first."""
-    def pattern_prepender(func):
-        return addpattern(func)(base_func)
-    return pattern_prepender
-```
-
-##### Example
-
-**Coconut:**
-```
-def factorial(n) = n * factorial(n - 1)
-
-@prepattern(factorial)
-def factorial(0) = 1
 ```
 
 **Python:**
@@ -1603,6 +1740,8 @@ In functional programming, `fmap(func, obj)` takes a data type `obj` and returns
 
 `fmap` can also be used on built-ins such as `str`, `list`, `set`, and `dict` as a variant of `map` that returns back an object of the same type. The behavior of `fmap` for a given object can be overridden by defining an `__fmap__(self, func)` method that will be called whenever `fmap` is invoked on that object.
 
+For `dict`, or any other `collections.abc.Mapping`, `fmap` will be called on the mapping's `.items()` instead of the default iteration through its `.keys()`.
+
 ##### Example
 
 **Coconut:**
@@ -1630,14 +1769,43 @@ Just(*map(lambda x: x*2, Just(3))) == Just(6)
 Nothing(*map(lambda x: x*2, Nothing())) == Nothing()
 ```
 
+### `starmap`
+
+Coconut provides a modified version of `itertools.starmap` that supports `reversed`, `repr`, optimized normal (and iterator) slicing, `len`, and `_func` and `_iter` attributes.
+
+##### Python Docs
+
+**starmap**(_function, iterable_)
+
+Make an iterator that computes the function using arguments obtained from the iterable. Used instead of `map()` when argument parameters are already grouped in tuples from a single iterable (the data has been "pre-zipped"). The difference between `map()` and `starmap()` parallels the distinction between `function(a,b)` and `function(*c)`. Roughly equivalent to:
+
+```coconut_python
+def starmap(function, iterable):
+    # starmap(pow, [(2,5), (3,2), (10,3)]) --> 32 9 1000
+    for args in iterable:
+        yield function(*args)
+```
+
+##### Example
+
+**Coconut:**
+```coconut
+range(1, 5) |> map$(range) |> starmap$(print) |> consume
+```
+
+**Python:**
+```coconut_python
+import itertools, collections
+collections.deque(itertools.starmap(print, map(range, range(1, 5))), maxlen=0)
+```
+
 ### `recursive_iterator`
 
 Coconut provides a `recursive_iterator` decorator that provides significant optimizations for any stateless, recursive function that returns an iterator. To use `recursive_iterator` on a function, it must meet the following criteria:
 
 1. your function either always `return`s an iterator or generates an iterator using `yield`,
-2. when called multiple times with the same arguments, your function produces the same iterator (your function is stateless),
-3. your function gets called (usually calls itself) multiple times with the same arguments, and
-4. all arguments passed to your function have a unique pickling (usually true for most arguments).
+2. when called multiple times with the same arguments, your function produces the same iterator (your function is stateless), and
+3. your function gets called (usually calls itself) multiple times with the same arguments.
 
 If you are encountering a `RuntimeError` due to maximum recursion depth, it is highly recommended that you rewrite your function to meet either the criteria above for `recursive_iterator`, or the corresponding criteria for Coconut's [tail call optimization](#tail-call-optimization), either of which should prevent such errors.
 
@@ -1725,7 +1893,10 @@ A `MatchError` is raised when a [destructuring assignment](#destructuring-assign
 
 It is sometimes useful to be able to access Coconut built-ins from pure Python. To accomplish this, Coconut provides `coconut.__coconut__`, which behaves exactly like the `__coconut__.py` header file included when Coconut is compiled in package mode.
 
-All Coconut built-ins are accessible from `coconut.__coconut__`. The recommended way to import them is to use `from coconut.__coconut__ import` and import whatever built-ins you'll be using. For example:
+All Coconut built-ins are accessible from `coconut.__coconut__`. The recommended way to import them is to use `from coconut.__coconut__ import` and import whatever built-ins you'll be using.
+
+##### Example
+
 ```coconut_python
 from coconut.__coconut__ import parallel_map
 ```
@@ -1736,9 +1907,11 @@ It is sometimes useful to be able to use the Coconut compiler from code, instead
 
 #### `parse`
 
-**coconut.convenience.parse**(_code,_ **[**_mode_**]**)
+**coconut.convenience.parse**(**[**_code,_ **[**_mode_**]]**)
 
 Likely the most useful of the convenience functions, `parse` takes Coconut code as input and outputs the equivalent compiled Python code. The second argument, _mode_, is used to indicate the context for the parsing.
+
+If _code_ is not passed, `parse` will output just the given _mode_'s header, which can be executed to set up an execution environment in which future code can be parsed and executed without a header.
 
 Each _mode_ has two components: what parser it uses, and what header it prepends. The parser determines what Coconut code is allowed as input, and the header determines how the compiled Python can be used. Possible values of _mode_ are:
 
@@ -1773,8 +1946,17 @@ Each _mode_ has two components: what parser it uses, and what header it prepends
     + header: none
 - `"debug"`:
     + parser: debug
-        * Can parse any Coconut code and allows leading whitespace.
+        * Can parse any Coconut code, allows leading whitespace, and has no trailing newline.
     + header: none
+
+##### Example
+
+```coconut_python
+from coconut.convenience import parse
+exec(parse())
+while True:
+    exec(parse(input(), mode="block"))
+```
 
 #### `setup`
 

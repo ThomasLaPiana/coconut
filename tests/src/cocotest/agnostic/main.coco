@@ -44,7 +44,7 @@ def main_test():
     \\def backslash_test():
         return (x) -> x
     assert \(1) == 1 == backslash_test()(1)
-    assert (\(
+    assert True is (\(
             "hello"
         ) == "hello" == \(
             'hello'
@@ -321,10 +321,10 @@ def main_test():
     assert [1, 2, 3] |> fmap$(x -> x+1) == [2, 3, 4]
     assert (1, 2, 3) |> fmap$(x -> x+1) == (2, 3, 4)
     assert "abc" |> fmap$(x -> x+"!") == "a!b!c!"
-    assert {1:"2", 2:"3"} |> fmap$(-> _+1) == {2:"2", 3:"3"}
+    assert {1:"2", 2:"3"} |> fmap$((k, v) -> (k+1, v+"!")) == {2:"2!", 3:"3!"}
     assert {1, 2, 3} |> fmap$(-> _+1) == {2, 3, 4}
     assert [[1, 2, 3]] |> fmap$((+)$([0])) == [[0, 1, 2, 3]]
-    assert range(3) |> fmap$(-> _ + 1) |> tuple == (1, 2, 3)
+    assert range(3) |> fmap$(-> _+1) |> tuple == (1, 2, 3) == (|0, 1, 2|) |> fmap$(-> _+1) |> tuple
     assert issubclass(int, py_int)
     class pyobjsub(py_object)
     class objsub(object)
@@ -338,24 +338,85 @@ def main_test():
     assert isinstance(os, objsub)
     assert isinstance(os, object)
     assert not isinstance(os, pyobjsub)
+    assert [] == \([)\(])
+    "a" + b + "c" = "abc"
+    assert b == "b"
+    "a" + bc = "abc"
+    assert bc == "bc"
+    ab + "c" = "abc"
+    assert ab == "ab"
+    match "a" + b in 5:
+        assert False
+    assert 400 == 10 |> x -> x*2 |> x -> x**2
+    assert 100 == 10 |> x -> x*2 |> y -> x**2
+    assert 3 == 1 `(x, y) -> x + y` 2
+    match {"a": a, **rest} = {"a": 2, "b": 3}
+    assert a == 2
+    assert rest == {"b": 3}
+    _ = None
+    match {"a": a **_} = {"a": 4, "b": 5}
+    assert a == 4
+    assert _ is None
+    a = 1,
+    assert a == (1,)
+    (x,) = a
+    assert x == 1 == a[0]
+    assert (10,)[0] == 10
+    x, x = 1, 2
+    assert x == 2
+    from io import StringIO, BytesIO
+    s = StringIO("derp")
+    assert s.read() == "derp"
+    b = BytesIO(b"herp")
+    assert b.read() == b"herp"
+    assert 1 ?? 2 == 1 == (??)(1, 2)
+    assert None ?? 2 == 2 == (??)(None, 2)
+    timeout = None
+    local_timeout = 60
+    global_timeout = 300
+    def ret_timeout() = timeout
+    def ret_local_timeout() = local_timeout
+    def ret_global_timeout() = global_timeout
+    assert timeout ?? local_timeout ?? global_timeout == 60
+    assert ret_timeout() ?? ret_local_timeout() ?? ret_global_timeout() == 60
+    local_timeout = None
+    assert timeout ?? local_timeout ?? global_timeout == 300
+    assert ret_timeout() ?? ret_local_timeout() ?? ret_global_timeout() == 300
+    timeout ??= 10
+    assert timeout == 10
+    global_timeout ??= 10
+    assert global_timeout == 300
+    assert (not None ?? True) is False
+    assert 1 == None ?? 1
+    assert 'foo' in None ?? ['foo', 'bar']
+    assert 3 == 1 + (None ?? 2)
+    requested_quantity = 0
+    default_quantity = 1
+    price = 100
+    assert 0 == (requested_quantity ?? default_quantity) * price
     return True
 
-def test_tco(x) = test_tco(x)
+def tco_func() = tco_func()
 
 def main(*args):
     """Asserts arguments and executes tests."""
     assert all(args)
+    print(".", end="")  # ..
     assert main_test()
+    print(".", end="")  # ...
     if sys.version_info >= (2, 7):
         from .specific import non_py26_test
         assert non_py26_test()
     if not (3,) <= sys.version_info < (3, 3):
         from .specific import non_py32_test
         assert non_py32_test
+    print(".", end="")  # ....
     from .suite import suite_test, tco_test
     assert suite_test()
-    if hasattr(test_tco, "_coconut_is_tco"):
+    print(".", end="")  # .....
+    if hasattr(tco_func, "_coconut_tco_func"):
         assert tco_test()
+    print(".", end="")  # ......
     if sys.version_info < (3,):
         from .py2_test import py2_test
         assert py2_test()
@@ -365,5 +426,6 @@ def main(*args):
         if sys.version_info >= (3, 5):
             from .py35_test import py35_test
             assert py35_test()
+    print(".", end="")  # .......
     from . import tutorial
-    print("<success>")
+    print("\n<success>")

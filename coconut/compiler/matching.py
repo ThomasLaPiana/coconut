@@ -72,6 +72,9 @@ class Matcher(object):
         "series": lambda self: self.match_sequence,
         "rseries": lambda self: self.match_rsequence,
         "mseries": lambda self: self.match_msequence,
+        "string": lambda self: self.match_string,
+        "rstring": lambda self: self.match_rstring,
+        "mstring": lambda self: self.match_mstring,
         "const": lambda self: self.match_const,
         "var": lambda self: self.match_var,
         "set": lambda self: self.match_set,
@@ -331,13 +334,24 @@ class Matcher(object):
 
     def match_dict(self, tokens, item):
         """Matches a dictionary."""
-        (matches,) = tokens
+        if len(tokens) == 1:
+            matches, rest = tokens[0], None
+        else:
+            matches, rest = tokens
         self.add_check("_coconut.isinstance(" + item + ", _coconut.abc.Mapping)")
-        self.add_check("_coconut.len(" + item + ") == " + str(len(matches)))
+        if rest is None:
+            self.add_check("_coconut.len(" + item + ") == " + str(len(matches)))
+        match_keys = []
         for x in range(len(matches)):
             k, v = matches[x]
             self.add_check(k + " in " + item)
             self.match(v, item + "[" + k + "]")
+            match_keys.append(k)
+        if rest is not None and rest != wildcard:
+            self.add_def(rest
+                         + " = dict((k, v) for (k, v) in "
+                         + item + ".items() if k not in set(("
+                         + ", ".join(match_keys) + ("," if len(match_keys) == 1 else "") + ")))")
 
     def match_sequence(self, tokens, item):
         """Matches a sequence."""
@@ -351,35 +365,45 @@ class Matcher(object):
             self.add_check("_coconut.len(" + item + ") == " + str(len(matches)))
         else:
             self.add_check("_coconut.len(" + item + ") >= " + str(len(matches)))
-            if len(matches):
-                splice = "[" + str(len(matches)) + ":]"
-            else:
-                splice = ""
-            if series_type == "(":
-                self.add_def(tail + " = _coconut.tuple(" + item + splice + ")")
-            elif series_type == "[":
-                self.add_def(tail + " = _coconut.list(" + item + splice + ")")
-            else:
-                raise CoconutInternalException("invalid series match type", series_type)
+            if tail != wildcard:
+                if len(matches):
+                    splice = "[" + str(len(matches)) + ":]"
+                else:
+                    splice = ""
+                if series_type == "(":
+                    self.add_def(tail + " = _coconut.tuple(" + item + splice + ")")
+                elif series_type == "[":
+                    self.add_def(tail + " = _coconut.list(" + item + splice + ")")
+                else:
+                    raise CoconutInternalException("invalid series match type", series_type)
         self.match_all_in(matches, item)
 
     def match_iterator(self, tokens, item):
-        """Matches an iterator."""
+        """Matches a lazy list or a chain."""
         tail = None
         if len(tokens) == 2:
             _, matches = tokens
         else:
             _, matches, tail = tokens
         self.add_check("_coconut.isinstance(" + item + ", _coconut.abc.Iterable)")
-        itervar = self.get_temp_var()
         if tail is None:
+            itervar = self.get_temp_var()
             self.add_def(itervar + " = _coconut.tuple(" + item + ")")
-        else:
-            self.add_def(tail + " = _coconut.iter(" + item + ")")
+        elif matches:
+            itervar = self.get_temp_var()
+            if tail == wildcard:
+                tail = item
+            else:
+                self.add_def(tail + " = _coconut.iter(" + item + ")")
             self.add_def(itervar + " = _coconut.tuple(_coconut_igetitem(" + tail + ", _coconut.slice(None, " + str(len(matches)) + ")))")
-        with self.incremented():
-            self.add_check("_coconut.len(" + itervar + ") == " + str(len(matches)))
-            self.match_all_in(matches, itervar)
+        else:
+            itervar = None
+            if tail != wildcard:
+                self.add_def(tail + " = " + item)
+        if itervar is not None:
+            with self.incremented():
+                self.add_check("_coconut.len(" + itervar + ") == " + str(len(matches)))
+                self.match_all_in(matches, itervar)
 
     def match_star(self, tokens, item):
         """Matches starred assignment."""
@@ -395,16 +419,18 @@ class Matcher(object):
             head_matches, middle, last_matches = tokens
         self.add_check("_coconut.isinstance(" + item + ", _coconut.abc.Iterable)")
         if head_matches is None and last_matches is None:
-            self.add_def(middle + " = _coconut.list(" + item + ")")
+            if middle != wildcard:
+                self.add_def(middle + " = _coconut.list(" + item + ")")
         else:
             itervar = self.get_temp_var()
             self.add_def(itervar + " = _coconut.list(" + item + ")")
             with self.incremented():
                 req_length = (len(head_matches) if head_matches is not None else 0) + (len(last_matches) if last_matches is not None else 0)
                 self.add_check("_coconut.len(" + itervar + ") >= " + str(req_length))
-                head_splice = str(len(head_matches)) if head_matches is not None else ""
-                last_splice = "-" + str(len(last_matches)) if last_matches is not None else ""
-                self.add_def(middle + " = " + itervar + "[" + head_splice + ":" + last_splice + "]")
+                if middle != wildcard:
+                    head_splice = str(len(head_matches)) if head_matches is not None else ""
+                    last_splice = "-" + str(len(last_matches)) if last_matches is not None else ""
+                    self.add_def(middle + " = " + itervar + "[" + head_splice + ":" + last_splice + "]")
                 if head_matches is not None:
                     self.match_all_in(head_matches, itervar)
                 if last_matches is not None:
@@ -416,16 +442,17 @@ class Matcher(object):
         front, series_type, matches = tokens
         self.add_check("_coconut.isinstance(" + item + ", _coconut.abc.Sequence)")
         self.add_check("_coconut.len(" + item + ") >= " + str(len(matches)))
-        if len(matches):
-            splice = "[:" + str(-len(matches)) + "]"
-        else:
-            splice = ""
-        if series_type == "(":
-            self.add_def(front + " = _coconut.tuple(" + item + splice + ")")
-        elif series_type == "[":
-            self.add_def(front + " = _coconut.list(" + item + splice + ")")
-        else:
-            raise CoconutInternalException("invalid series match type", series_type)
+        if front != wildcard:
+            if len(matches):
+                splice = "[:" + str(-len(matches)) + "]"
+            else:
+                splice = ""
+            if series_type == "(":
+                self.add_def(front + " = _coconut.tuple(" + item + splice + ")")
+            elif series_type == "[":
+                self.add_def(front + " = _coconut.list(" + item + splice + ")")
+            else:
+                raise CoconutInternalException("invalid series match type", series_type)
         for x in range(len(matches)):
             self.match(matches[x], item + "[" + str(x - len(matches)) + "]")
 
@@ -434,23 +461,56 @@ class Matcher(object):
         series_type, head_matches, middle, _, last_matches = tokens
         self.add_check("_coconut.isinstance(" + item + ", _coconut.abc.Sequence)")
         self.add_check("_coconut.len(" + item + ") >= " + str(len(head_matches) + len(last_matches)))
-        if len(head_matches) and len(last_matches):
-            splice = "[" + str(len(head_matches)) + ":" + str(-len(last_matches)) + "]"
-        elif len(head_matches):
-            splice = "[" + str(len(head_matches)) + ":]"
-        elif len(last_matches):
-            splice = "[:" + str(-len(last_matches)) + "]"
-        else:
-            splice = ""
-        if series_type == "(":
-            self.add_def(middle + " = _coconut.tuple(" + item + splice + ")")
-        elif series_type == "[":
-            self.add_def(middle + " = _coconut.list(" + item + splice + ")")
-        else:
-            raise CoconutInternalException("invalid series match type", series_type)
+        if middle != wildcard:
+            if len(head_matches) and len(last_matches):
+                splice = "[" + str(len(head_matches)) + ":" + str(-len(last_matches)) + "]"
+            elif len(head_matches):
+                splice = "[" + str(len(head_matches)) + ":]"
+            elif len(last_matches):
+                splice = "[:" + str(-len(last_matches)) + "]"
+            else:
+                splice = ""
+            if series_type == "(":
+                self.add_def(middle + " = _coconut.tuple(" + item + splice + ")")
+            elif series_type == "[":
+                self.add_def(middle + " = _coconut.list(" + item + splice + ")")
+            else:
+                raise CoconutInternalException("invalid series match type", series_type)
         self.match_all_in(head_matches, item)
         for x in range(len(last_matches)):
             self.match(last_matches[x], item + "[" + str(x - len(last_matches)) + "]")
+
+    def match_string(self, tokens, item):
+        """Match prefix string."""
+        prefix, name = tokens
+        return self.match_mstring((prefix, name, None), item, use_bytes=prefix.startswith("b"))
+
+    def match_rstring(self, tokens, item):
+        """Match suffix string."""
+        name, suffix = tokens
+        return self.match_mstring((None, name, suffix), item, use_bytes=suffix.startswith("b"))
+
+    def match_mstring(self, tokens, item, use_bytes=None):
+        """Match prefix and suffix string."""
+        prefix, name, suffix = tokens
+        if use_bytes is None:
+            if prefix.startswith("b") or suffix.startswith("b"):
+                if prefix.startswith("b") and suffix.startswith("b"):
+                    use_bytes = True
+                else:
+                    raise CoconutDeferredSyntaxError("string literals and byte literals cannot be added in patterns", self.loc)
+        if use_bytes:
+            self.add_check("_coconut.isinstance(" + item + ", _coconut.bytes)")
+        else:
+            self.add_check("_coconut.isinstance(" + item + ", _coconut.str)")
+        if prefix is not None:
+            self.add_check(item + ".startswith(" + prefix + ")")
+        if suffix is not None:
+            self.add_check(item + ".endswith(" + suffix + ")")
+        if name != wildcard:
+            self.add_def(name + " = " + item + "[" +
+                         ("" if prefix is None else "_coconut.len(" + prefix + ")") + ":"
+                         + ("" if suffix is None else "-_coconut.len(" + suffix + ")") + "]")
 
     def match_const(self, tokens, item):
         """Matches a constant."""

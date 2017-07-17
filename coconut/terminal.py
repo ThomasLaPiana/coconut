@@ -26,9 +26,9 @@ import logging
 import time
 from contextlib import contextmanager
 
-from pyparsing import lineno, col, ParserElement
+from coconut.pyparsing import lineno, col, ParserElement
 if DEVELOP:
-    from pyparsing import _trim_arity
+    from coconut.pyparsing import _trim_arity
 
 from coconut.constants import (
     info_tabulation,
@@ -56,7 +56,11 @@ def printerr(*args):
 def format_error(err_type, err_value, err_trace=None):
     """Properly formats the specified error."""
     if err_trace is None:
-        err_name, err_msg = "".join(traceback.format_exception_only(err_type, err_value)).strip().split(": ", 1)
+        err_parts = "".join(traceback.format_exception_only(err_type, err_value)).strip().split(": ", 1)
+        if len(err_parts) == 1:
+            err_name, err_msg = err_parts[0], ""
+        else:
+            err_name, err_msg = err_parts
         err_name = err_name.split(".")[-1]
         return err_name + ": " + err_msg
     else:
@@ -107,27 +111,32 @@ class Logger(object):
             print(full_message)
 
     def show(self, *messages):
-        """Prints messages with main signature."""
+        """Prints messages if not --quiet."""
+        if not self.quiet:
+            self.display(messages)
+
+    def show_sig(self, *messages):
+        """Prints messages with main signature if not --quiet."""
         if not self.quiet:
             self.display(messages, main_sig)
 
     def show_error(self, *messages):
-        """Prints error messages with main signature."""
+        """Prints error messages with main signature if not --quiet."""
         if not self.quiet:
             self.display(messages, main_sig, debug=True)
 
     def log(self, *messages):
-        """Logs debug messages if in verbose mode."""
+        """Logs debug messages if --verbose."""
         if self.verbose:
             printerr(*messages)
 
-    def log_show(self, *messages):
-        """Logs debug messages with main signature."""
+    def log_sig(self, *messages):
+        """Logs debug messages with main signature if --verbose."""
         if self.verbose:
             self.display(messages, main_sig, debug=True)
 
     def log_vars(self, message, variables, rem_vars=("self",)):
-        """Logs variables with given message."""
+        """Logs variables with given message if --verbose."""
         if self.verbose:
             new_vars = dict(variables)
             for v in rem_vars:
@@ -202,19 +211,26 @@ class Logger(object):
     def log_trace(self, tag, original, loc, tokens=None):
         """Formats and displays a trace if tracing."""
         if self.tracing:
-            original = str(original)
-            loc = int(loc)
-            tag = str(tag)
-            if " " in tag:
-                tag = "..."
-            out = ["[" + tag + "]"]
-            if tokens is not None:
-                if not isinstance(tokens, Exception) and len(tokens) == 1 and isinstance(tokens[0], str):
-                    out.append(ascii(tokens[0]))
-                else:
-                    out.append(str(tokens))
-            out.append("(line " + str(lineno(loc, original)) + ", col " + str(col(loc, original)) + ")")
-            printerr(*out)
+            tag, original, loc = str(tag), str(original), int(loc)
+            if "{" not in tag:
+                out = ["[" + tag + "]"]
+                add_line_col = True
+                if tokens is not None:
+                    if isinstance(tokens, Exception):
+                        msg = str(tokens)
+                        if "{" in msg:
+                            head, middle = msg.split("{", 1)
+                            middle, tail = middle.rsplit("}", 1)
+                            msg = head + "{...}" + tail
+                        out.append(msg)
+                        add_line_col = False
+                    elif len(tokens) == 1 and isinstance(tokens[0], str):
+                        out.append(ascii(tokens[0]))
+                    else:
+                        out.append(str(tokens))
+                if add_line_col:
+                    out.append("(line:" + str(lineno(loc, original)) + ", col:" + str(col(loc, original)) + ")")
+                printerr(*out)
 
     def _trace_start_action(self, original, loc, expr):
         self.log_trace(expr, original, loc)
@@ -245,7 +261,7 @@ class Logger(object):
                     return _trim_arity(handler)(s, l, t)
                 except CoconutException:
                     raise
-                except Exception:
+                except (Exception, AssertionError):
                     traceback.print_exc()
                     raise CoconutInternalException("error calling handler " + handler.__name__ + " with tokens", t)
             return wrapped_handler
